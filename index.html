@@ -156,8 +156,8 @@
             <span id="dispJobName" class="font-bold text-slate-100 truncate block text-xs">-</span>
           </div>
           <div class="bg-slate-800/60 p-2 rounded-lg">
-            <span class="text-slate-400 block text-[10px]">위험등급 / 작업종류</span>
-            <span id="dispRiskAndType" class="font-bold text-rose-300 truncate block text-xs">-</span>
+            <span class="text-slate-400 block text-[10px]">허가시간 / 기간</span>
+            <span id="dispWorkTime" class="font-bold text-cyan-300 truncate block text-xs">-</span>
           </div>
           <div class="bg-slate-800/60 p-2 rounded-lg">
             <span class="text-slate-400 block text-[10px]">협력사 / 담당자</span>
@@ -378,6 +378,7 @@
                 <th class="p-2.5">허가번호</th>
                 <th class="p-2.5">사업장/장소</th>
                 <th class="p-2.5">작업명</th>
+                <th class="p-2.5">작업기간</th>
                 <th class="p-2.5">허가시간</th>
                 <th class="p-2.5">협력사</th>
                 <th class="p-2.5 text-center">등급</th>
@@ -654,23 +655,71 @@
               복사
             </button>
           </div>
-          <pre id="gasTemplateCode" class="bg-slate-900 text-emerald-400 p-2.5 rounded-lg font-mono text-[10px] max-h-36 overflow-y-auto custom-scrollbar select-all">
+          <pre id="gasTemplateCode" class="bg-slate-900 text-emerald-400 p-2.5 rounded-lg font-mono text-[10px] max-h-48 overflow-y-auto custom-scrollbar select-all">
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('🛡️ 안전 패트롤 관리')
+    .addItem('시트 및 헤더 자동 초기화/생성', 'setupSheetsAuto')
+    .addItem('시트1 샘플 작업 데이터 등록', 'injectSamplePermits')
+    .addToUi();
+}
+
+function setupSheetsAuto() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet1 = ss.getSheetByName("시트1") || ss.insertSheet("시트1", 0);
+  var sheet1Headers = ["허가번호", "사업장", "작업기간", "허가시간", "작업장소", "작업명", "작업부서(발주부서)", "작업감독자", "협력회사", "협력회사작업감독자", "위험등급", "작업종류"];
+  sheet1.getRange(1, 1, 1, sheet1Headers.length).setValues([sheet1Headers]).setBackground("#1e293b").setFontColor("#fff").setFontWeight("bold").setHorizontalAlignment("center");
+  sheet1.setFrozenRows(1);
+  if (sheet1.getLastRow() <= 1) injectSamplePermits();
+
+  var sheet2 = ss.getSheetByName("시트2") || ss.insertSheet("시트2", 1);
+  var sheet2Headers = [
+    "점검일시", "허가번호", "사업장", "작업장소", "작업명", "협력사/담당자", "적용점검표", "종합판정", "양호수", "불량수", "해당무", "가스측정치", "점검자",
+    "[F]_F1_불티비산방지", "[F]_F2_KFI인증포", "[F]_F3_소방보양", "[F]_F4_화기감시자", "[F]_F5_11m이격", "[F]_F6_비상통로", "[F]_F7_소화기비치", "[F]_F8_허가서게시",
+    "[H]_H1_안전대체결", "[H]_H2_과상승방지", "[H]_H3_난간대발판", "[H]_H4_하부통제원",
+    "[M]_M1_신호수배치", "[M]_M2_안전벨트서행", "[M]_M3_방호장치", "[M]_M4_적재시야",
+    "[C]_C1_MSDS경고표지", "[C]_C2_방독보호구", "[C]_C3_강제환기",
+    "[G]_G1_TBM실시", "[G]_G2_보호구착용", "[G]_G3_3정5S통로", "[G]_G4_임시가설분전",
+    "조치소견 및 특이사항"
+  ];
+  sheet2.getRange(1, 1, 1, sheet2Headers.length).setValues([sheet2Headers]).setBackground("#0f172a").setFontColor("#fff").setFontWeight("bold").setHorizontalAlignment("center");
+  sheet2.setFrozenRows(1);
+  sheet2.setFrozenColumns(5);
+}
+
+function injectSamplePermits() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet1 = ss.getSheetByName("시트1");
+  if (!sheet1) return;
+  var sampleRows = [
+    ["2026-GAG-00004", "진위사업장", "2026-11-03 ~ 2026-11-06", "07:30 ~ 19:30", "3F 통합사무실", "진위사업장 리모델링 작업(2층, 3층, 4층)", "GA G", "박진홍", "SEL인테리어디자인", "유상조", "B", "TBM 진행 절차, 일반위험, 지게차(중장비)"],
+    ["2026-구매팀-00077", "진위 사업장", "2026-11-02 ~ 2026-11-06", "08:30 ~ 17:30", "1F 반출입구", "컬럼, 케이스 하차 지게차 작업", "구매팀", "박정수", "엠에프테크", "유희원", "C", "TBM 진행 절차, 일반위험, 지게차(중장비)"],
+    ["2026-제조팀-00190", "진위 사업장", "2026-11-02 ~ 2026-11-06", "04:30 ~ 22:30", "1F 반출입구", "출하 및 물류 업무 진행", "제조팀", "박육송", "(주)고덕명성로지스", "이태준", "C", "TBM 진행 절차, 일반위험, 지게차(중장비)"],
+    ["2026-GAG-00002", "진위사업장", "2026-11-02 ~ 2026-11-06", "07:30 ~ 17:30", "3F 전체", "진위사업장 리모델링 작업(2층, 3층, 4층)", "GA G", "박진홍", "SEL인테리어디자인", "김예은", "B", "TBM 진행 절차, 일반위험"]
+  ];
+  sheet1.getRange(2, 1, sampleRows.length, sampleRows[0].length).setValues(sampleRows);
+}
+
 function doGet(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet1 = ss.getSheetByName("시트1") || ss.getSheets()[0];
+  var sheet1 = ss.getSheetByName("시트1");
+  if (!sheet1) { setupSheetsAuto(); sheet1 = ss.getSheetByName("시트1"); }
   var data = sheet1.getDataRange().getValues();
-  return ContentService.createTextOutput(JSON.stringify({ status: "success", data: data }))
+  return ContentService.createTextOutput(JSON.stringify({ status: "success", count: Math.max(0, data.length - 1), data: data }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {
   try {
-    var payload = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet2 = ss.getSheetByName("시트2") || ss.insertSheet("시트2");
-    if (payload.action === "saveInspection") {
+    var sheet2 = ss.getSheetByName("시트2");
+    if (!sheet2) { setupSheetsAuto(); sheet2 = ss.getSheetByName("시트2"); }
+    var payload = JSON.parse(e.postData.contents);
+    if (payload.action === "saveInspection" && payload.row) {
       sheet2.appendRow(payload.row);
-      return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
+      var lastRow = sheet2.getLastRow();
+      sheet2.setRowHeight(lastRow, 28);
+      return ContentService.createTextOutput(JSON.stringify({ status: "success", rowNumber: lastRow }))
         .setMimeType(ContentService.MimeType.JSON);
     }
   } catch(err) {
@@ -946,7 +995,16 @@ function doPost(e) {
       document.getElementById('dispPermitNo').innerText = p.permitNo || '-';
       document.getElementById('dispSiteLocation').innerText = `${p.site || ''} / ${p.location || ''}`;
       document.getElementById('dispJobName').innerText = p.jobName || '-';
-      document.getElementById('dispRiskAndType').innerText = `[${p.riskGrade || '-'}] ${p.workTypes || '-'}`;
+      
+      // 시트에 기록된 허가시간 및 작업기간 원본 그대로 표기
+      let timeText = '-';
+      if (p.time && p.date) {
+        timeText = `${p.date} | ${p.time}`;
+      } else {
+        timeText = p.time || p.date || '-';
+      }
+      document.getElementById('dispWorkTime').innerText = timeText;
+      
       document.getElementById('dispContractor').innerText = `${p.contractor || '-'} (${p.contractorManager || '-'})`;
     }
 
@@ -1524,9 +1582,9 @@ function doPost(e) {
           <td class="p-3 font-mono font-bold text-slate-900">${p.permitNo}</td>
           <td class="p-3">${p.site} <span class="text-slate-400">/</span> ${p.location}</td>
           <td class="p-3 font-semibold text-slate-800">${p.jobName}</td>
-          <td class="p-3 text-[11px] text-slate-500">${p.date} (${p.time})</td>
+          <td class="p-3 text-[11px] text-slate-600">${p.date || '-'}</td>
+          <td class="p-3 text-[11px] text-slate-600 font-mono">${p.time || '-'}</td>
           <td class="p-3">${p.dept} <span class="text-slate-400">(${p.manager})</span></td>
-          <td class="p-3">${p.contractor} <span class="text-slate-400">(${p.contractorManager})</span></td>
           <td class="p-3 text-center"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${p.riskGrade === 'A' ? 'bg-rose-100 text-rose-700' : p.riskGrade === 'B' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'}">${p.riskGrade}</span></td>
           <td class="p-3 text-[11px] text-slate-600">${p.workTypes}</td>
         `;
