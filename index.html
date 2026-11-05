@@ -123,60 +123,103 @@
     <div id="viewInspect" class="space-y-4 sm:space-y-6">
 
       <!-- 작업 매칭 배너 & 선택기 -->
-      <section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl p-3.5 sm:p-5 shadow-sm border border-slate-700/80">
-        <div class="flex flex-col gap-2.5">
-          <div class="flex items-center justify-between">
+      <section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl p-3.5 sm:p-5 shadow-sm border border-slate-700/80 space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
             <span class="px-2 py-0.5 text-[10px] sm:text-[11px] font-bold bg-amber-400 text-slate-950 rounded">작업허가 연동</span>
+            <span id="filteredPermitCountBadge" class="text-[11px] text-slate-300 font-medium">검색결과: 0건</span>
+          </div>
+          <div class="flex items-center gap-2 text-xs">
+            <label class="flex items-center gap-1 cursor-pointer text-slate-300 hover:text-white select-none">
+              <input type="checkbox" id="ignoreDateFilter" onchange="applyPermitFilters()" class="rounded border-slate-600 text-amber-500 focus:ring-0">
+              <span class="text-[11px]">날짜무관 전체보기</span>
+            </label>
+            <span class="text-slate-600">|</span>
             <button onclick="switchMainTab('permits')" class="text-xs text-amber-300 hover:underline flex items-center gap-1">
               <i class="fa-solid fa-paste"></i>
-              <span>로그 추가/변경</span>
+              <span>로그 추가/수정</span>
             </button>
           </div>
+        </div>
 
-          <!-- 작업 선택 셀렉트 -->
-          <div>
-            <select id="permitSelectBox" onchange="onSelectPermit(this.value)" class="bg-slate-800 text-white border border-slate-600 rounded-xl px-3 py-2.5 text-xs sm:text-sm font-semibold focus:ring-2 focus:ring-amber-400 outline-none w-full">
-              <!-- JS에서 옵션 주입 -->
+        <!-- 일자 및 작업종류 필터 바 -->
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 text-xs">
+          <!-- 점검일자 입력 (기본값 오늘) -->
+          <div class="sm:col-span-4 bg-slate-800/90 border border-slate-700 rounded-xl px-2.5 py-1.5 flex items-center gap-2">
+            <span class="text-slate-400 text-[11px] font-semibold shrink-0 flex items-center gap-1">
+              <i class="fa-solid fa-calendar-day text-amber-400"></i> 점검일자
+            </span>
+            <input type="date" id="patrolDateFilter" onchange="applyPermitFilters()" class="w-full bg-slate-900 text-white border border-slate-600 rounded-lg px-2 py-1 text-xs font-semibold outline-none focus:ring-1 focus:ring-amber-400">
+          </div>
+
+          <!-- 작업종류 필터 드롭다운 -->
+          <div class="sm:col-span-4 bg-slate-800/90 border border-slate-700 rounded-xl px-2.5 py-1.5 flex items-center gap-2">
+            <span class="text-slate-400 text-[11px] font-semibold shrink-0 flex items-center gap-1">
+              <i class="fa-solid fa-tags text-cyan-400"></i> 작업종류
+            </span>
+            <select id="workTypeFilterSelect" onchange="applyPermitFilters()" class="w-full bg-slate-900 text-white border border-slate-600 rounded-lg px-2 py-1 text-xs font-semibold outline-none focus:ring-1 focus:ring-amber-400">
+              <option value="ALL">전체 작업종류</option>
+              <option value="화기">화기작업 (용접/절단)</option>
+              <option value="고소">고소작업 (비계/사다리/렌탈)</option>
+              <option value="지게차">지게차 / 중장비</option>
+              <option value="화학물질">화학물질 / 도장 / 유해</option>
+              <option value="일반위험">일반위험 / TBM</option>
+            </select>
+          </div>
+
+          <!-- 대상 작업 드롭다운 -->
+          <div class="sm:col-span-4">
+            <select id="permitSelectBox" onchange="onSelectPermit(this.value)" class="w-full h-full min-h-[36px] bg-slate-800 text-white border border-amber-500/70 rounded-xl px-3 py-1.5 text-xs font-bold focus:ring-2 focus:ring-amber-400 outline-none">
+              <!-- JS에서 필터링된 옵션 주입 -->
             </select>
           </div>
         </div>
 
         <!-- 매칭된 작업 상세 배너 (모바일 친화적 카드) -->
-        <div id="matchedJobCard" class="mt-3 pt-3 border-t border-slate-700/80 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 text-xs">
-          <div class="bg-slate-800/60 p-2 rounded-lg">
-            <span class="text-slate-400 block text-[10px]">허가번호</span>
-            <span id="dispPermitNo" class="font-bold text-amber-300 truncate block text-xs">-</span>
+        <div id="matchedJobCard" class="mt-2 pt-2.5 border-t border-slate-700/80 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+          <div class="bg-slate-800/80 p-2 rounded-xl border border-slate-700">
+            <span class="text-slate-400 text-[10px] block">허가번호</span>
+            <span id="dispPermitNo" class="font-mono font-bold text-amber-300 text-xs truncate block">-</span>
           </div>
-          <div class="bg-slate-800/60 p-2 rounded-lg">
-            <span class="text-slate-400 block text-[10px]">사업장 / 위치</span>
-            <span id="dispSiteLocation" class="font-bold text-slate-100 truncate block text-xs">-</span>
+          <div class="bg-slate-800/80 p-2 rounded-xl border border-slate-700">
+            <span class="text-slate-400 text-[10px] block">사업장 / 위치</span>
+            <span id="dispSiteLocation" class="font-bold text-white text-xs truncate block">-</span>
           </div>
-          <div class="col-span-2 bg-slate-800/60 p-2 rounded-lg">
-            <span class="text-slate-400 block text-[10px]">작업명</span>
-            <span id="dispJobName" class="font-bold text-slate-100 truncate block text-xs">-</span>
+          <div class="col-span-2 sm:col-span-1 lg:col-span-1 bg-slate-800/80 p-2 rounded-xl border border-slate-700">
+            <span class="text-slate-400 text-[10px] block">작업명</span>
+            <span id="dispJobName" class="font-bold text-white text-xs truncate block">-</span>
           </div>
-          <div class="bg-slate-800/60 p-2 rounded-lg">
-            <span class="text-slate-400 block text-[10px]">허가시간 / 기간</span>
-            <span id="dispWorkTime" class="font-bold text-cyan-300 truncate block text-xs">-</span>
+          <div class="bg-slate-800/80 p-2 rounded-xl border border-slate-700">
+            <span class="text-slate-400 text-[10px] block">작업기간</span>
+            <span id="dispWorkDate" class="font-semibold text-slate-200 text-xs truncate block">-</span>
           </div>
-          <div class="bg-slate-800/60 p-2 rounded-lg">
-            <span class="text-slate-400 block text-[10px]">협력사 / 담당자</span>
-            <span id="dispContractor" class="font-bold text-slate-100 truncate block text-xs">-</span>
+          <div class="bg-slate-800/80 p-2 rounded-xl border border-slate-700">
+            <span class="text-slate-400 text-[10px] block">허가시간</span>
+            <span id="dispWorkTime" class="font-mono font-semibold text-amber-200 text-xs truncate block">-</span>
+          </div>
+          <div class="col-span-2 sm:col-span-1 lg:col-span-1 bg-slate-800/80 p-2 rounded-xl border border-slate-700">
+            <span class="text-slate-400 text-[10px] block">협력회사 (담당자)</span>
+            <span id="dispContractor" class="font-semibold text-slate-200 text-xs truncate block">-</span>
           </div>
         </div>
       </section>
 
-      <!-- 순차 점검 대상 작업군 안내 및 활성 템플릿 토글 칩 -->
-      <section class="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2.5">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
-          <div class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <h3 class="text-xs sm:text-sm font-bold text-slate-800">적용 점검표 (순차 점검)</h3>
-            <span id="activeTemplatesCountBadge" class="px-1.5 py-0.2 text-[10px] bg-slate-900 text-white rounded-full font-bold">0개</span>
+      <!-- 복합 점검표 안내 및 토글 칩 선택 바 -->
+      <section class="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-sm space-y-2.5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="p-1.5 bg-slate-900 text-amber-400 rounded-lg text-xs font-bold">
+              <i class="fa-solid fa-layer-group"></i>
+            </span>
+            <div>
+              <h3 class="text-xs sm:text-sm font-bold text-slate-800">해당 공정 순차 점검표 (세로 스크롤)</h3>
+              <p class="text-[11px] text-slate-500">작업에 포함된 모든 위험요소 점검표가 아래에 연속 배치됩니다.</p>
+            </div>
+            <span id="activeTemplatesCountBadge" class="ml-1 px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded-full">2개 분야 적용</span>
           </div>
 
-          <div class="flex items-center gap-1.5">
-            <button id="quickPassAllBtn" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1 shadow transition">
+          <div class="flex items-center gap-1.5 self-end sm:self-auto">
+            <button id="quickPassAllBtn" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1 shadow-sm">
               <i class="fa-solid fa-check-double"></i>
               <span>전체양호</span>
             </button>
@@ -889,6 +932,7 @@ function doPost(e) {
     let currentPermit = PERMIT_LOGS[0];
     let activeTemplateIds = ["tmpl_common", "tmpl_heavy"]; // 기본 선택
     let inspectionHistory = []; // 시트 2 누적 배열
+    let filteredPermits = []; // 점검일자/작업종류 필터링된 작업목록
 
     // Google Apps Script (GAS) 웹앱 URL 관리
     let gasWebAppUrl = "";
@@ -902,12 +946,26 @@ function doPost(e) {
     // 3. 앱 초기화 및 탭 전환
     // ==========================================
     window.onload = function() {
-      initPermitSelection();
+      initPatrolDateInput();
+      applyPermitFilters();
       renderPermitTable();
       initSignatureCanvas();
       updateHistoryTable();
       initGasUrlSetting();
     };
+
+    // 오늘 날짜(YYYY-MM-DD)를 점검일자 기본값으로 설정
+    function initPatrolDateInput() {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+      const dateInput = document.getElementById('patrolDateFilter');
+      if (dateInput && !dateInput.value) {
+        dateInput.value = todayStr;
+      }
+    }
 
     function initGasUrlSetting() {
       // localStorage 대신 기본 메모리 및 입력창 동기화 지원
@@ -956,24 +1014,85 @@ function doPost(e) {
     // ==========================================
     // 4. 시트1 작업로그 파싱 & 복수 작업종류 자동 매칭
     // ==========================================
-    function initPermitSelection() {
+    
+    // 점검일자 및 작업종류에 따른 작업목록 필터링
+    function applyPermitFilters() {
+      const selectedDate = document.getElementById('patrolDateFilter').value;
+      const selectedType = document.getElementById('workTypeFilterSelect').value;
+      const ignoreDate = document.getElementById('ignoreDateFilter').checked;
+
+      filteredPermits = PERMIT_LOGS.filter(p => {
+        // 1. 날짜 매칭 검증
+        let dateMatched = true;
+        if (!ignoreDate && selectedDate) {
+          dateMatched = isDateWithinRange(selectedDate, p.date);
+        }
+
+        // 2. 작업종류 필터 검증
+        let typeMatched = true;
+        if (selectedType !== 'ALL') {
+          const combined = `${p.workTypes || ''} ${p.jobName || ''}`.toLowerCase();
+          typeMatched = combined.includes(selectedType.toLowerCase());
+        }
+
+        return dateMatched && typeMatched;
+      });
+
+      // 배지 건수 표기
+      const badge = document.getElementById('filteredPermitCountBadge');
+      if (badge) {
+        badge.innerText = `검색결과: ${filteredPermits.length}건 / 전체 ${PERMIT_LOGS.length}건`;
+      }
+
+      renderPermitSelectOptions();
+    }
+
+    // 날짜가 작업기간(예: 2026-11-03 ~ 2026-11-06) 내에 속하는지 판별
+    function isDateWithinRange(targetDateStr, permitDateStr) {
+      if (!permitDateStr || permitDateStr === '-' || permitDateStr.trim() === '') return true;
+      
+      const cleanTarget = targetDateStr.trim().replace(/\./g, '-');
+
+      // 기간 형태인 경우 (예: "2026-11-03 ~ 2026-11-06" 또는 "2026.11.03 ~ 2026.11.06")
+      if (permitDateStr.includes('~')) {
+        const parts = permitDateStr.split('~').map(s => s.trim().replace(/\./g, '-'));
+        const startDate = parts[0];
+        const endDate = parts[1] || parts[0];
+
+        // YYYY-MM-DD 형식 문자열 비교
+        return cleanTarget >= startDate && cleanTarget <= endDate;
+      } else {
+        // 단일 날짜인 경우 포함 여부
+        return permitDateStr.replace(/\./g, '-').includes(cleanTarget);
+      }
+    }
+
+    function renderPermitSelectOptions() {
       const select = document.getElementById('permitSelectBox');
       select.innerHTML = '';
 
-      if (PERMIT_LOGS.length === 0) {
-        select.innerHTML = '<option value="">등록된 작업이 없습니다</option>';
+      if (filteredPermits.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = "";
+        opt.innerText = "해당 조건의 작업이 없습니다";
+        select.appendChild(opt);
+        bindPermitToUI({});
         return;
       }
 
-      PERMIT_LOGS.forEach((p) => {
+      filteredPermits.forEach(p => {
         const opt = document.createElement('option');
         opt.value = p.permitNo;
         opt.innerText = `[${p.permitNo}] ${p.jobName} (${p.location})`;
         select.appendChild(opt);
       });
 
-      if (!currentPermit || !PERMIT_LOGS.find(p => p.permitNo === currentPermit.permitNo)) {
-        currentPermit = PERMIT_LOGS[0];
+      // 기존 선택 작업이 필터 목록에 있으면 유지, 없으면 첫 번째 작업 선택
+      const stillExists = filteredPermits.find(p => currentPermit && p.permitNo === currentPermit.permitNo);
+      if (stillExists) {
+        currentPermit = stillExists;
+      } else {
+        currentPermit = filteredPermits[0];
       }
 
       select.value = currentPermit.permitNo;
@@ -982,6 +1101,7 @@ function doPost(e) {
     }
 
     function onSelectPermit(permitNo) {
+      if (!permitNo) return;
       const found = PERMIT_LOGS.find(p => p.permitNo === permitNo);
       if (found) {
         currentPermit = found;
@@ -993,19 +1113,14 @@ function doPost(e) {
 
     function bindPermitToUI(p) {
       document.getElementById('dispPermitNo').innerText = p.permitNo || '-';
-      document.getElementById('dispSiteLocation').innerText = `${p.site || ''} / ${p.location || ''}`;
-      document.getElementById('dispJobName').innerText = p.jobName || '-';
+      document.getElementById('dispSiteLocation').innerText = (p.site || p.location) ? `${p.site || ''} / ${p.location || ''}` : '-';
+      document.getElementById('dispJobName').innerText = p.jobName || '선택된 작업 없음';
       
-      // 시트에 기록된 허가시간 및 작업기간 원본 그대로 표기
-      let timeText = '-';
-      if (p.time && p.date) {
-        timeText = `${p.date} | ${p.time}`;
-      } else {
-        timeText = p.time || p.date || '-';
-      }
-      document.getElementById('dispWorkTime').innerText = timeText;
+      // 구글시트에 기록된 원형 그대로 작업기간과 허가시간을 분리하여 표기
+      document.getElementById('dispWorkDate').innerText = p.date || '-';
+      document.getElementById('dispWorkTime').innerText = p.time || '-';
       
-      document.getElementById('dispContractor').innerText = `${p.contractor || '-'} (${p.contractorManager || '-'})`;
+      document.getElementById('dispContractor').innerText = p.contractor ? `${p.contractor} (${p.contractorManager || '-'})` : '-';
     }
 
     // 작업명과 작업종류에 포함된 복수의 키워드를 검색하여 해당하는 모든 템플릿을 활성화
@@ -1558,7 +1673,7 @@ function doPost(e) {
 
       PERMIT_LOGS = parsedList;
       currentPermit = PERMIT_LOGS[0];
-      initPermitSelection();
+      applyPermitFilters();
       renderPermitTable();
       switchMainTab('inspect');
       showToast(`총 ${parsedList.length}건의 작업 로그가 연동되었습니다!`, "success");
@@ -1593,6 +1708,10 @@ function doPost(e) {
     }
 
     function selectPermitFromTable(permitNo) {
+      // 날짜/작업종류 필터와 무관하게 선택할 수 있도록 날짜 무관 옵션 활성화 후 선택
+      document.getElementById('ignoreDateFilter').checked = true;
+      document.getElementById('workTypeFilterSelect').value = 'ALL';
+      applyPermitFilters();
       onSelectPermit(permitNo);
       document.getElementById('permitSelectBox').value = permitNo;
       switchMainTab('inspect');
@@ -1601,7 +1720,8 @@ function doPost(e) {
     function clearAllPermits() {
       if (confirm("등록된 모든 작업 목록을 비우시겠습니까?")) {
         PERMIT_LOGS = [];
-        initPermitSelection();
+        filteredPermits = [];
+        applyPermitFilters();
         renderPermitTable();
         showToast("작업 목록이 비워졌습니다.", "info");
       }
@@ -2041,7 +2161,7 @@ ${notes ? '■ 조치사항: ' + notes : ''}`;
           if (parsed.length > 0) {
             PERMIT_LOGS = parsed;
             currentPermit = PERMIT_LOGS[0];
-            initPermitSelection();
+            applyPermitFilters();
             renderPermitTable();
             showToast(`구글 시트(시트1)로부터 ${parsed.length}건의 작업을 불러왔습니다!`, "success");
           } else {
