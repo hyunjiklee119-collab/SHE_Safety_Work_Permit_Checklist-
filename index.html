@@ -1,0 +1,2232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>통합 안전 패트롤 점검 및 작업로그 매칭 시스템</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+      body { background: white !important; color: black !important; }
+    }
+    .status-btn.active-pass {
+      background-color: #16a34a !important;
+      color: white !important;
+      border-color: #16a34a !important;
+      box-shadow: 0 2px 6px -1px rgba(22, 163, 74, 0.4);
+    }
+    .status-btn.active-fail {
+      background-color: #dc2626 !important;
+      color: white !important;
+      border-color: #dc2626 !important;
+      box-shadow: 0 2px 6px -1px rgba(220, 38, 38, 0.4);
+    }
+    .status-btn.active-na {
+      background-color: #475569 !important;
+      color: white !important;
+      border-color: #475569 !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-800 pb-20 md:pb-6">
+
+  <!-- Header: 모바일 컴팩트 반응형 -->
+  <header class="bg-slate-900 text-white sticky top-0 z-40 border-b border-slate-800 shadow-md">
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2.5">
+          <span class="p-2 sm:p-2.5 bg-amber-500 text-slate-950 rounded-xl flex items-center justify-center font-black shadow-lg shadow-amber-500/20">
+            <i class="fa-solid fa-clipboard-check text-base sm:text-lg"></i>
+          </span>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <h1 class="text-sm sm:text-base font-bold tracking-tight">안전 패트롤 점검</h1>
+              <span class="px-1.5 py-0.2 text-[10px] bg-emerald-500/20 text-emerald-300 font-semibold rounded-full border border-emerald-500/30">현장모바일</span>
+            </div>
+            <p class="text-[11px] text-slate-400 hidden md:block">작업허가서 자동 매칭 · 작업종류별 템플릿 관리 · 구글시트 연동 이력관리</p>
+          </div>
+        </div>
+
+        <!-- 모바일 우측 바로가기 (GAS & 설정) -->
+        <div class="flex items-center gap-1 sm:hidden">
+          <button onclick="openGasConfigModal()" class="p-2 text-emerald-400 hover:text-white bg-slate-800 rounded-lg text-xs" title="GAS 연동">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+          </button>
+          <button onclick="openTemplateManagerModal()" class="p-2 text-slate-300 hover:text-white bg-slate-800 rounded-lg text-xs" title="체크리스트 관리">
+            <i class="fa-solid fa-sliders"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs: 모바일 가로 스와이프 지원 -->
+      <div class="flex items-center gap-1 bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 overflow-x-auto no-scrollbar">
+        <button id="navTabInspect" onclick="switchMainTab('inspect')" class="px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 text-slate-950 transition flex items-center gap-1.5 shrink-0 shadow">
+          <i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i>
+          <span>패트롤 점검</span>
+        </button>
+        <button id="navTabPermits" onclick="switchMainTab('permits')" class="px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition flex items-center gap-1.5 shrink-0">
+          <i class="fa-solid fa-table-list"></i>
+          <span>작업목록(시트1)</span>
+          <span id="permitBadgeCount" class="px-1.5 py-0.2 bg-amber-500/20 text-amber-300 rounded text-[10px] font-bold">4</span>
+        </button>
+        <button id="navTabHistory" onclick="switchMainTab('history')" class="px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition flex items-center gap-1.5 shrink-0">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          <span>점검이력(시트2)</span>
+          <span id="historyBadgeCount" class="px-1.5 py-0.2 bg-blue-500/20 text-blue-300 rounded text-[10px] font-bold">0</span>
+        </button>
+        <button id="navTabGasConfig" onclick="openGasConfigModal()" class="hidden sm:flex px-2.5 py-1.5 text-xs font-semibold rounded-lg text-emerald-400 hover:text-white hover:bg-slate-700 transition items-center gap-1 shrink-0" title="구글 Apps Script(GAS) 웹앱 URL 설정">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span>GAS 연동</span>
+        </button>
+        <button id="navTabTemplates" onclick="openTemplateManagerModal()" class="hidden sm:flex px-2.5 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition shrink-0" title="체크리스트 템플릿 관리">
+          <i class="fa-solid fa-sliders"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 md:p-6 space-y-4 sm:space-y-6">
+
+    <!-- ==================== TAB 1: 패트롤 현장 점검 화면 ==================== -->
+    <div id="viewInspect" class="space-y-4 sm:space-y-6">
+
+      <!-- 작업 매칭 배너 & 선택기 -->
+      <section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl p-3.5 sm:p-5 shadow-sm border border-slate-700/80">
+        <div class="flex flex-col gap-2.5">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 text-[10px] sm:text-[11px] font-bold bg-amber-400 text-slate-950 rounded">작업허가 연동</span>
+            <button onclick="switchMainTab('permits')" class="text-xs text-amber-300 hover:underline flex items-center gap-1">
+              <i class="fa-solid fa-paste"></i>
+              <span>로그 추가/변경</span>
+            </button>
+          </div>
+
+          <!-- 작업 선택 셀렉트 -->
+          <div>
+            <select id="permitSelectBox" onchange="onSelectPermit(this.value)" class="bg-slate-800 text-white border border-slate-600 rounded-xl px-3 py-2.5 text-xs sm:text-sm font-semibold focus:ring-2 focus:ring-amber-400 outline-none w-full">
+              <!-- JS에서 옵션 주입 -->
+            </select>
+          </div>
+        </div>
+
+        <!-- 매칭된 작업 상세 배너 (모바일 친화적 카드) -->
+        <div id="matchedJobCard" class="mt-3 pt-3 border-t border-slate-700/80 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 text-xs">
+          <div class="bg-slate-800/60 p-2 rounded-lg">
+            <span class="text-slate-400 block text-[10px]">허가번호</span>
+            <span id="dispPermitNo" class="font-bold text-amber-300 truncate block text-xs">-</span>
+          </div>
+          <div class="bg-slate-800/60 p-2 rounded-lg">
+            <span class="text-slate-400 block text-[10px]">사업장 / 위치</span>
+            <span id="dispSiteLocation" class="font-bold text-slate-100 truncate block text-xs">-</span>
+          </div>
+          <div class="col-span-2 bg-slate-800/60 p-2 rounded-lg">
+            <span class="text-slate-400 block text-[10px]">작업명</span>
+            <span id="dispJobName" class="font-bold text-slate-100 truncate block text-xs">-</span>
+          </div>
+          <div class="bg-slate-800/60 p-2 rounded-lg">
+            <span class="text-slate-400 block text-[10px]">위험등급 / 작업종류</span>
+            <span id="dispRiskAndType" class="font-bold text-rose-300 truncate block text-xs">-</span>
+          </div>
+          <div class="bg-slate-800/60 p-2 rounded-lg">
+            <span class="text-slate-400 block text-[10px]">협력사 / 담당자</span>
+            <span id="dispContractor" class="font-bold text-slate-100 truncate block text-xs">-</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 순차 점검 대상 작업군 안내 및 활성 템플릿 토글 칩 -->
+      <section class="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2.5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <h3 class="text-xs sm:text-sm font-bold text-slate-800">적용 점검표 (순차 점검)</h3>
+            <span id="activeTemplatesCountBadge" class="px-1.5 py-0.2 text-[10px] bg-slate-900 text-white rounded-full font-bold">0개</span>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <button id="quickPassAllBtn" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1 shadow transition">
+              <i class="fa-solid fa-check-double"></i>
+              <span>전체양호</span>
+            </button>
+            <button id="resetFormBtn" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg flex items-center gap-1 transition" title="초기화">
+              <i class="fa-solid fa-rotate-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- 템플릿 포함/제외 토글 태그들 (가로 스크롤 가능) -->
+        <div class="flex flex-wrap items-center gap-1.5" id="templateToggleChips">
+          <!-- JS로 동적 생성 -->
+        </div>
+      </section>
+
+      <!-- 대시보드 상태 통계 게이지 (모바일 2x2 그리드) -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+        <div class="bg-white border border-slate-200 rounded-xl p-2.5 sm:p-3 flex items-center space-x-2.5 shadow-sm">
+          <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-sm sm:text-base font-bold shrink-0">
+            <i class="fa-solid fa-list-check"></i>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[11px] text-slate-500 font-medium">총 문항</p>
+            <p id="totalCount" class="text-base sm:text-lg font-bold text-slate-800 truncate">0</p>
+          </div>
+        </div>
+        <div class="bg-white border border-emerald-200 rounded-xl p-2.5 sm:p-3 flex items-center space-x-2.5 shadow-sm">
+          <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm sm:text-base font-bold shrink-0">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[11px] text-slate-500 font-medium">적합(양호)</p>
+            <p id="passCount" class="text-base sm:text-lg font-bold text-emerald-600 truncate">0</p>
+          </div>
+        </div>
+        <div class="bg-white border border-rose-200 rounded-xl p-2.5 sm:p-3 flex items-center space-x-2.5 shadow-sm">
+          <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center text-sm sm:text-base font-bold shrink-0">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[11px] text-slate-500 font-medium">부적합(불량)</p>
+            <p id="failCount" class="text-base sm:text-lg font-bold text-rose-600 truncate">0</p>
+          </div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-2.5 sm:p-3 flex items-center space-x-2.5 shadow-sm">
+          <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-sm sm:text-base font-bold shrink-0">
+            <i class="fa-solid fa-percent"></i>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[11px] text-slate-500 font-medium">진척률</p>
+            <p id="progressPercent" class="text-base sm:text-lg font-bold text-slate-800 truncate">0%</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 세로 순차 체크리스트 렌더링 컨테이너 -->
+      <div id="sequentialChecklistsContainer" class="space-y-4 sm:space-y-5">
+        <!-- 해당되는 각 작업종류별 점검 카드가 세로로 순차 렌더링됨 -->
+      </div>
+
+      <!-- 가스 농도 및 환경 수치 기록 (모바일 3열 균등 레이아웃) -->
+      <section class="bg-white rounded-2xl p-3.5 sm:p-4 border border-slate-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+          <div class="flex items-center gap-1.5 font-bold text-slate-800 text-xs sm:text-sm">
+            <i class="fa-solid fa-gauge-high text-cyan-600"></i>
+            <span>현장 가스 및 환경 측정치 기록</span>
+          </div>
+          <span class="text-[10px] text-slate-400">화기/밀폐 필수</span>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-xs">
+          <div class="p-2 sm:p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-center">
+            <label class="block font-semibold text-slate-600 text-[10px] sm:text-xs mb-1">산소 (O₂)</label>
+            <div class="flex items-center justify-center gap-1">
+              <input type="number" step="0.1" id="gasO2" value="20.9" class="w-14 sm:w-16 px-1.5 py-1 bg-white border border-slate-300 rounded text-center text-slate-800 font-bold text-xs outline-none focus:ring-1 focus:ring-cyan-500">
+              <span class="text-[10px] font-bold text-slate-500">%</span>
+            </div>
+          </div>
+          <div class="p-2 sm:p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-center">
+            <label class="block font-semibold text-slate-600 text-[10px] sm:text-xs mb-1">가연성 (LEL)</label>
+            <div class="flex items-center justify-center gap-1">
+              <input type="number" step="0.1" id="gasLEL" value="0.0" class="w-14 sm:w-16 px-1.5 py-1 bg-white border border-slate-300 rounded text-center text-slate-800 font-bold text-xs outline-none focus:ring-1 focus:ring-cyan-500">
+              <span class="text-[10px] font-bold text-slate-500">%</span>
+            </div>
+          </div>
+          <div class="p-2 sm:p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-center">
+            <label class="block font-semibold text-slate-600 text-[10px] sm:text-xs mb-1">일산화탄소</label>
+            <div class="flex items-center justify-center gap-1">
+              <input type="number" step="1" id="gasCO" value="0" class="w-14 sm:w-16 px-1.5 py-1 bg-white border border-slate-300 rounded text-center text-slate-800 font-bold text-xs outline-none focus:ring-1 focus:ring-cyan-500">
+              <span class="text-[10px] font-bold text-slate-500">ppm</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 점검 소견 및 서명 패드 -->
+      <section class="bg-white rounded-2xl p-3.5 sm:p-4 border border-slate-200 shadow-sm space-y-3">
+        <div class="flex items-center gap-1.5 font-bold text-slate-800 border-b border-slate-100 pb-2 text-xs sm:text-sm">
+          <i class="fa-solid fa-pen-to-square text-amber-500"></i>
+          <span>패트롤 점검 소견 및 서명</span>
+        </div>
+
+        <div class="space-y-2.5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">점검 소견 및 시정 요구사항</label>
+            <textarea id="patrolNotes" rows="2" placeholder="현장 조치사항 또는 특이사항을 입력하세요..." class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition custom-scrollbar"></textarea>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">점검자 성명 <span class="text-rose-500">*</span></label>
+              <input type="text" id="inspectorName" value="박패트롤 (안전팀)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+
+            <!-- 서명 패드 -->
+            <div class="border border-slate-200 rounded-xl p-2 bg-slate-50">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <i class="fa-solid fa-signature"></i> 전자 서명
+                </span>
+                <button id="clearSignBtn" class="text-[11px] text-slate-500 hover:text-rose-600 underline">서명 지우기</button>
+              </div>
+              <div class="relative bg-white rounded-lg border border-dashed border-slate-300 touch-none h-20 overflow-hidden">
+                <canvas id="signCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+                <div id="signPlaceholder" class="absolute inset-0 flex items-center justify-center text-xs text-slate-400 pointer-events-none select-none">
+                  터치 또는 마우스로 서명
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 데스크톱용 인라인 버튼 바 -->
+      <div class="hidden md:flex gap-3 pt-2 no-print">
+        <button onclick="saveCurrentInspectionToHistory()" class="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow flex items-center justify-center gap-2 transition text-sm">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span>점검 완료 및 이력(시트2) 저장</span>
+        </button>
+        <button onclick="openReportModal()" class="py-3.5 px-6 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow flex items-center justify-center gap-2 transition text-sm">
+          <i class="fa-solid fa-print"></i>
+          <span>결과서 출력</span>
+        </button>
+        <button onclick="shareSummaryText()" class="py-3.5 px-6 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl shadow flex items-center justify-center gap-2 transition text-sm">
+          <i class="fa-solid fa-share-nodes"></i>
+          <span>메신저 복사</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- ==================== TAB 2: 작업목록 (시트 1 로그 붙여넣기 및 매칭) ==================== -->
+    <div id="viewPermits" class="space-y-4 hidden">
+      <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-file-import text-amber-500"></i>
+              <span>작업허가 로그 입력 및 연동 (시트 1)</span>
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">구글 스프레드시트나 시스템에서 복사한 작업 목록을 붙여넣거나 GAS로 동기화하세요.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="fetchPermitsFromGAS()" id="btnGasFetchPermits" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1 shadow-sm">
+              <i class="fa-solid fa-rotate"></i>
+              <span>GAS 시트1 불러오기</span>
+            </button>
+            <button onclick="loadSamplePermits()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition">
+              샘플 로그
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <textarea id="permitPasteArea" rows="4" placeholder="작업 허가 목록 텍스트를 여기에 붙여넣으세요 (구글 시트에서 복사한 표 데이터)..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition custom-scrollbar"></textarea>
+        </div>
+
+        <div class="flex justify-end">
+          <button onclick="parseAndSavePermitLogs()" class="w-full sm:w-auto px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-check"></i>
+            <span>붙여넣은 작업목록 분석 및 등록</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 현재 등록된 작업 목록 테이블 -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+          <h3 class="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
+            <i class="fa-solid fa-list-check text-slate-500"></i>
+            <span>로드된 작업 목록 (<span id="permitTableCount">0</span>건)</span>
+          </h3>
+          <button onclick="clearAllPermits()" class="text-xs text-rose-500 hover:underline">목록 비우기</button>
+        </div>
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-left text-xs whitespace-nowrap">
+            <thead class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+              <tr>
+                <th class="p-2.5 w-14 text-center">선택</th>
+                <th class="p-2.5">허가번호</th>
+                <th class="p-2.5">사업장/장소</th>
+                <th class="p-2.5">작업명</th>
+                <th class="p-2.5">허가시간</th>
+                <th class="p-2.5">협력사</th>
+                <th class="p-2.5 text-center">등급</th>
+                <th class="p-2.5">작업종류</th>
+              </tr>
+            </thead>
+            <tbody id="permitTableBody" class="divide-y divide-slate-100 text-slate-700">
+              <!-- 주입 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 3: 점검이력 (시트 2 누적 및 CSV/구글시트 내려받기) ==================== -->
+    <div id="viewHistory" class="space-y-4 hidden">
+      <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-database text-blue-600"></i>
+              <span>점검 결과 이력 관리 (시트 2)</span>
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">점검 완료된 모든 패트롤 결과가 누적 기록되며 시트로 전송하거나 CSV로 내려받을 수 있습니다.</p>
+          </div>
+
+          <!-- 내려받기 액션 버튼들 -->
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button onclick="syncHistoryToGAS()" id="btnGasSyncHistory" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1 shadow">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+              <span>GAS 전송</span>
+            </button>
+            <button onclick="copyHistoryToClipboard()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1 shadow">
+              <i class="fa-solid fa-copy"></i>
+              <span>시트복사</span>
+            </button>
+            <button onclick="exportHistoryCSV()" class="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1 shadow">
+              <i class="fa-solid fa-file-excel"></i>
+              <span>CSV 저장</span>
+            </button>
+            <button onclick="clearHistoryRecords()" class="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg text-xs transition" title="이력 비우기">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- 필터 검색바 -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <input type="text" id="historySearchInput" oninput="filterHistoryTable()" placeholder="허가번호, 작업명, 위치 검색..." class="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <select id="historyFilterResult" onchange="filterHistoryTable()" class="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="ALL">전체 판정 결과</option>
+            <option value="PASS">적합 (양호)</option>
+            <option value="FAIL">부적합 (조치필요)</option>
+          </select>
+          <div class="flex items-center justify-end text-xs text-slate-500 font-medium">
+            누적 건수: <b id="historyTotalCountText" class="text-slate-800 ml-1">0</b>건
+          </div>
+        </div>
+      </div>
+
+      <!-- 이력 테이블 -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-left text-xs whitespace-nowrap">
+            <thead class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+              <tr>
+                <th class="p-2.5 w-8 text-center">No</th>
+                <th class="p-2.5">일시</th>
+                <th class="p-2.5">허가번호</th>
+                <th class="p-2.5">작업명</th>
+                <th class="p-2.5 text-center">판정</th>
+                <th class="p-2.5 text-center">양호/불량</th>
+                <th class="p-2.5">점검자</th>
+                <th class="p-2.5">조치소견</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody" class="divide-y divide-slate-100 text-slate-700">
+              <!-- 주입 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================== 모바일 전용 하단 고정 액션바 (Sticky Bottom Bar) ==================== -->
+  <div class="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 p-2.5 px-3 md:hidden flex items-center gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] no-print">
+    <button onclick="saveCurrentInspectionToHistory()" class="flex-1 py-3 bg-emerald-600 active:bg-emerald-700 text-white font-bold rounded-xl shadow-sm flex items-center justify-center gap-1.5 text-xs transition">
+      <i class="fa-solid fa-floppy-disk text-sm"></i>
+      <span>점검완료 저장</span>
+    </button>
+    <button onclick="openReportModal()" class="py-3 px-3.5 bg-slate-900 active:bg-slate-800 text-white font-semibold rounded-xl flex items-center justify-center gap-1 text-xs shrink-0 transition" title="결과서 보기">
+      <i class="fa-solid fa-file-contract text-sm"></i>
+      <span>보고서</span>
+    </button>
+    <button onclick="shareSummaryText()" class="py-3 px-3 bg-amber-500 active:bg-amber-600 text-slate-950 font-bold rounded-xl flex items-center justify-center text-xs shrink-0 transition" title="메신저 복사">
+      <i class="fa-solid fa-share-nodes text-sm"></i>
+    </button>
+  </div>
+
+  <!-- ==================== MODAL: 템플릿 관리자 ==================== -->
+  <div id="templateModal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto">
+      <div class="p-3.5 sm:p-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-amber-400"></i>
+          <h3 class="font-bold text-sm sm:text-base">점검 템플릿 관리자</h3>
+        </div>
+        <button onclick="closeTemplateModal()" class="p-1 text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="p-4 overflow-y-auto custom-scrollbar space-y-4 text-xs text-slate-700">
+        <div class="flex flex-col sm:flex-row gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <select id="editTemplateSelect" onchange="loadTemplateForEditing(this.value)" class="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-lg font-semibold text-slate-800 outline-none text-xs">
+            <!-- 동적 채움 -->
+          </select>
+          <button onclick="promptCreateNewTemplate()" class="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg transition shrink-0 text-xs">
+            + 새 템플릿 추가
+          </button>
+        </div>
+
+        <div class="space-y-2">
+          <div>
+            <label class="block font-semibold text-slate-600 mb-1">템플릿 명칭</label>
+            <input type="text" id="tmplEditTitle" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-bold text-xs">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-600 mb-1">키워드 (쉼표 구분)</label>
+            <input type="text" id="tmplEditKeywords" placeholder="화기, 용접, 절단..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 text-xs">
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-800 text-xs">문항 목록 (<span id="tmplItemCount">0</span>개)</span>
+            <button onclick="addNewCheckItemRow()" class="px-2 py-1 bg-slate-800 text-white rounded text-[11px]">
+              + 문항 추가
+            </button>
+          </div>
+          <div id="tmplItemsListContainer" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+            <!-- 문항 행들 -->
+          </div>
+        </div>
+      </div>
+
+      <div class="p-3 bg-slate-100 border-t border-slate-200 flex items-center justify-between shrink-0">
+        <button onclick="deleteCurrentTemplate()" class="text-rose-600 text-xs font-semibold">이 템플릿 삭제</button>
+        <div class="flex gap-2">
+          <button onclick="closeTemplateModal()" class="px-3 py-1.5 bg-white border border-slate-300 rounded text-xs">닫기</button>
+          <button onclick="saveTemplateChanges()" class="px-3 py-1.5 bg-slate-900 text-white rounded text-xs font-bold">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: 결과서 미리보기 / 인쇄 ==================== -->
+  <div id="reportModal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2.5 sm:p-5 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto">
+      <div class="p-3.5 bg-slate-900 text-white flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-file-contract text-amber-400"></i>
+          <h3 class="font-bold text-sm">안전 패트롤 점검 결과표</h3>
+        </div>
+        <button onclick="closeReportModal()" class="p-1 text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div id="printReportArea" class="p-4 overflow-y-auto custom-scrollbar space-y-3.5 text-xs text-slate-800">
+        <!-- 상단 헤더 표 -->
+        <div class="border-2 border-slate-900 p-3 rounded-xl space-y-2">
+          <div class="text-center pb-1.5 border-b-2 border-slate-900">
+            <h2 class="text-base sm:text-lg font-black tracking-tight">안 전 패 트 roll 점 검 결 과 서</h2>
+            <p class="text-[10px] text-slate-500">Safety Patrol Hazard Inspection Report</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-1.5 text-[11px]">
+            <div><span class="font-bold text-slate-500">허가번호:</span> <span id="repPermitNo" class="font-semibold text-slate-900"></span></div>
+            <div><span class="font-bold text-slate-500">점검일시:</span> <span id="repDateTime" class="font-semibold text-slate-900"></span></div>
+            <div><span class="font-bold text-slate-500">현장/위치:</span> <span id="repLocation" class="font-semibold text-slate-900 truncate block"></span></div>
+            <div><span class="font-bold text-slate-500">협력사:</span> <span id="repContractor" class="font-semibold text-slate-900 truncate block"></span></div>
+            <div class="col-span-2"><span class="font-bold text-slate-500">작업명:</span> <span id="repJobName" class="font-semibold text-slate-900"></span></div>
+            <div class="col-span-2 pt-1 border-t border-slate-200"><span class="font-bold text-slate-500">종합판정:</span> <span id="repApprovalStatus" class="font-black text-sm"></span></div>
+          </div>
+        </div>
+
+        <!-- 카운트 및 가스 요약 -->
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
+            <span class="text-slate-600 font-medium">점검현황:</span>
+            <span class="font-bold"><span class="text-emerald-600">양호 <b id="repPassCount">0</b></span> / <span class="text-rose-600">불량 <b id="repFailCount">0</b></span></span>
+          </div>
+          <div class="p-2 bg-cyan-50/60 border border-cyan-200 rounded-lg text-center font-bold text-cyan-900 text-[11px]">
+            O₂:<span id="repO2">20.9%</span>, LEL:<span id="repLEL">0%</span>
+          </div>
+        </div>
+
+        <!-- 점검 테이블 -->
+        <table class="w-full border-collapse border border-slate-200 text-left text-[11px]">
+          <thead>
+            <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+              <th class="p-1.5 w-6 text-center">No</th>
+              <th class="p-1.5">점검 항목</th>
+              <th class="p-1.5 w-14 text-center">판정</th>
+            </tr>
+          </thead>
+          <tbody id="repTableBody" class="divide-y divide-slate-200"></tbody>
+        </table>
+
+        <!-- 소견 및 서명 -->
+        <div class="border-t border-slate-200 pt-2.5 flex items-start justify-between gap-2">
+          <div class="flex-1 pr-2">
+            <p class="font-bold text-slate-600 mb-0.5 text-[11px]">조치사항 및 소견:</p>
+            <p id="repNotes" class="bg-slate-50 p-2 rounded border border-slate-200 text-[11px] whitespace-pre-wrap min-h-[36px]"></p>
+          </div>
+          <div class="w-24 text-right flex flex-col items-end shrink-0">
+            <p class="font-bold text-slate-600 mb-0.5 text-[11px]">점검자: <span id="repInspector" class="font-semibold text-slate-900"></span></p>
+            <div class="w-24 h-12 bg-white border border-slate-300 rounded flex items-center justify-center overflow-hidden">
+              <img id="repSignImg" src="" alt="서명" class="max-h-full max-w-full hidden">
+              <span id="repNoSignText" class="text-[10px] text-slate-400">서명 없음</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-3 bg-slate-100 border-t border-slate-200 flex justify-end gap-2 shrink-0 no-print">
+        <button onclick="window.print()" class="px-3 py-1.5 bg-slate-900 text-white rounded text-xs font-semibold flex items-center gap-1">
+          <i class="fa-solid fa-print"></i> 인쇄
+        </button>
+        <button onclick="closeReportModal()" class="px-3 py-1.5 bg-white border border-slate-300 rounded text-xs">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: GAS (Google Apps Script) 웹앱 연동 설정 ==================== -->
+  <div id="gasModal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto">
+      <div class="p-3.5 sm:p-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-cloud-arrow-up text-emerald-400"></i>
+          <h3 class="font-bold text-sm sm:text-base">구글 Apps Script(GAS) 설정</h3>
+        </div>
+        <button onclick="closeGasModal()" class="p-1 text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="p-4 overflow-y-auto custom-scrollbar space-y-3.5 text-xs text-slate-700">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-emerald-900">
+          <p class="font-bold text-xs mb-1">구글 스프레드시트 배포 URL 연동</p>
+          <p class="text-[11px] leading-relaxed text-emerald-800">
+            배포된 웹앱 URL을 입력하면 모바일에서도 버튼 한 번으로 시트1을 불러오고 점검결과를 시트2에 자동 저장합니다.
+          </p>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Google Apps Script URL (exec 링크)</label>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input type="url" id="gasEndpointInput" placeholder="https://script.google.com/macros/s/.../exec" class="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500">
+            <button onclick="testGasConnection()" id="btnTestGas" class="px-3 py-2 bg-slate-800 text-white font-bold rounded-lg shrink-0 text-xs">
+              연결 테스트
+            </button>
+          </div>
+          <p id="gasStatusFeedback" class="text-[11px] mt-1 font-medium text-slate-500">상태: 미확인</p>
+        </div>
+
+        <div class="border-t border-slate-200 pt-3">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="font-bold text-slate-800 text-xs">Apps Script 소스코드 복사</span>
+            <button onclick="copyGasScriptTemplate()" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px]">
+              복사
+            </button>
+          </div>
+          <pre id="gasTemplateCode" class="bg-slate-900 text-emerald-400 p-2.5 rounded-lg font-mono text-[10px] max-h-36 overflow-y-auto custom-scrollbar select-all">
+function doGet(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet1 = ss.getSheetByName("시트1") || ss.getSheets()[0];
+  var data = sheet1.getDataRange().getValues();
+  return ContentService.createTextOutput(JSON.stringify({ status: "success", data: data }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  try {
+    var payload = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet2 = ss.getSheetByName("시트2") || ss.insertSheet("시트2");
+    if (payload.action === "saveInspection") {
+      sheet2.appendRow(payload.row);
+      return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+          </pre>
+        </div>
+      </div>
+
+      <div class="p-3 bg-slate-100 border-t border-slate-200 flex items-center justify-between shrink-0">
+        <button onclick="resetGasUrlToDefault()" class="text-xs text-rose-500 underline">URL 비우기</button>
+        <div class="flex gap-2">
+          <button onclick="closeGasModal()" class="px-3 py-1.5 bg-white border border-slate-300 rounded text-xs">닫기</button>
+          <button onclick="saveGasSettings()" class="px-3 py-1.5 bg-emerald-600 text-white rounded text-xs font-bold">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toastMessage" class="fixed bottom-16 md:bottom-5 right-3 md:right-5 bg-slate-900 text-white text-xs px-3.5 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 transform translate-y-20 opacity-0 transition duration-300 z-50 pointer-events-none">
+    <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+    <span id="toastText">알림 내용</span>
+  </div>
+
+  <!-- Script Implementation -->
+  <script>
+    // ==========================================
+    // 1. 점검 체크리스트 템플릿 원본 데이터베이스
+    // ==========================================
+    let CHECK_TEMPLATES = [
+      {
+        id: "tmpl_fire",
+        codePrefix: "F",
+        title: "화기작업 안전 패트롤 점검표",
+        targetKeywords: "화기, 용접, 용단, 그라인더, 절단, 가열, 토치",
+        icon: "fa-fire-burner",
+        items: [
+          { id: "f1", title: "불티비산 방지조치 (방포/차폐막) 설치 여부", desc: "용접·용단 불꽃 비산 방지를 위한 방화포, 불티차폐막이 틈새 없이 적정 설치되었는가?", standard: "작업 반경 둘레 밀폐 차폐", required: true, status: null },
+          { id: "f2", title: "불티비산 방지포의 KFI 인증 제품 사용 여부", desc: "사용된 비산방지포 및 방화포가 한국소방산업기술원(KFI) 검정 인증을 받은 정품인가?", standard: "KFI 인증마크 및 홀로그램 확인", required: true, status: null },
+          { id: "f3", title: "소방시설 오작동 방지 사전 차단 및 보양 조치", desc: "분진, 흄, 불꽃으로 인한 감지기 오작동 예방을 위해 방재실 협의 후 보양 캡을 씌웠는가?", standard: "헤드 보양 및 방재실 차단 승인", required: true, status: null },
+          { id: "f4", title: "화기감시자 전담 지정 및 현장 상주 배치", desc: "화기작업 중 다른 업무를 겸직하지 않는 전담 화기감시자가 지정 장소에 배치되어 있는가?", standard: "완료 후 30분 이상 잔불 감시", required: true, status: null },
+          { id: "f5", title: "작업장 주변 가연물·인화물질 이격 준수 (11m 원칙)", desc: "작업 지점 반경 11m 이내 가연물을 반출하거나 제거하기 곤란한 가연물은 방염 조치하였는가?", standard: "반경 11m 이격 또는 방염커버", required: true, status: null },
+          { id: "f6", title: "비상연락망 및 비상대피로(통로) 숙지 여부", desc: "화재 발생 시 비상연락망(방재실/119)을 숙지하고 피난 유효 폭(1.2m 이상)이 확보되었는가?", standard: "비상통로 장애물 적재 금지", required: true, status: null },
+          { id: "f7", title: "주변 소화기 비치(5m 이내) 및 사용법 숙지", desc: "작업 반경 5m 이내 능력단위 ABC소화기 2대 이상 비치 및 압력 게이지(녹색) 정상인가?", standard: "ABC소화기 2대 이상 + 게이지 정상", required: true, status: null },
+          { id: "f8", title: "화기작업 허가서 현장 게시 및 안전수칙 준수", desc: "당일 유효한 화기작업허가서가 현장에 게시되고 승인된 시간 및 인원이 준수되고 있는가?", standard: "현장 보기 쉬운 곳 게시", required: true, status: null }
+        ]
+      },
+      {
+        id: "tmpl_height",
+        codePrefix: "H",
+        title: "고소작업(추락예방) 패트롤 점검표",
+        targetKeywords: "고소, 비계, 사다리, 렌탈, 고소작업대, 리프트, 2층, 3층, 4층, 천장, 슬라브",
+        icon: "fa-person-falling",
+        items: [
+          { id: "h1", title: "안전대 착용 및 생명선(안전대 부착설비) 체결 여부", desc: "2m 이상 고소작업 시 안전그네(안전대)를 착용하고 유효한 걸이시설에 100% 체결하였는가?", standard: "안전대 걸이시설 1개소 1인 체결", required: true, status: null },
+          { id: "h2", title: "고소작업대(렌탈/스카이) 과상승방지장치 및 인터록 작동", desc: "협착 방지용 과상승방지봉 리밋 스위치 및 비상정지 버튼이 정상 작동하는가?", standard: "과상승방지대 설치 및 임의 해제 금지", required: true, status: null },
+          { id: "h3", title: "작업발판 및 안전난간대 설치 기준 준수", desc: "발판 틈새 3cm 이하, 상부난간대(90cm 이상) 및 중간난간대, 폭목이 견고한가?", standard: "임의 탈락 및 흔들림 없음", required: true, status: null },
+          { id: "h4", title: "하부 출입통제 구역 설정 및 낙하물 방지망 조치", desc: "낙하 위험 반경 내 구획로프 설치 및 하부 신호수(통제원)가 배치되어 있는가?", standard: "하부 작업 동시 금지", required: false, status: null }
+        ]
+      },
+      {
+        id: "tmpl_heavy",
+        codePrefix: "M",
+        title: "중장비·지게차 작업 패트롤 점검표",
+        targetKeywords: "지게차, 중장비, 크레인, 하차, 양중, 카고크레인, 반출입구",
+        icon: "fa-truck-ramp-box",
+        items: [
+          { id: "m1", title: "전담 신호수(유도자) 배치 및 표준신호 준수", desc: "운행 반경 내 전담 유도원/신호수가 배치되어 보행자와 접촉 위험을 통제하고 있는가?", standard: "신호수 형광조끼 착용 및 경광봉 지참", required: true, status: null },
+          { id: "m2", title: "운전자 안전벨트 착용 및 제한속도(10km/h) 준수", desc: "지게차 운전자가 안전벨트를 올바르게 착용하고 구내 제한속도를 준수하는가?", standard: "사내 규정 속도 이하 서행", required: true, status: null },
+          { id: "m3", title: "헤드가드, 백레스트 및 포크 락핀 상태", desc: "낙하물 보호용 헤드가드 변형 없음 및 포크 폭 조절 락핀이 정상 체결되어 있는가?", standard: "주요 방호장치 이상 무", required: false, status: null },
+          { id: "m4", title: "화물 적재 상태(시야 확보 및 편하중 방지)", desc: "운전자 전방 시야를 가리지 않도록 적재하고 무게중심 및 결속이 안정적인가?", standard: "과적 금지, 시야 불량 시 후진 유도", required: true, status: null }
+        ]
+      },
+      {
+        id: "tmpl_chemical",
+        codePrefix: "C",
+        title: "화학물질·위험물 취급 점검표",
+        targetKeywords: "화학물질, 유해물질, 도장, 신너, 페인트, 방수, 세척제",
+        icon: "fa-flask-vial",
+        items: [
+          { id: "c1", title: "물질안전보건자료(MSDS) 현장 비치 및 경고표지 부착", desc: "소분 용기에 GHS 경고표지가 부착되어 있고 MSDS 요약본이 현장에 비치되어 있는가?", standard: "경고표지 100% 부착", required: true, status: null },
+          { id: "c2", title: "유기화합물 전용 개인보호구(방독마스크/내화학장갑) 착용", desc: "취급 물질에 맞는 방독정화통 마스크, 보안경, 화학물질용 보호장갑을 착용했는가?", standard: "KCS 인증 유기화합물 방독마스크", required: true, status: null },
+          { id: "c3", title: "강제 환기팬 가동 및 폐기물(웨스/폐용기) 밀폐 수거", desc: "국소배기 및 송풍기가 상시 가동 중이며, 신너 묻은 헝겊이 뚜껑 있는 철재통에 분리 수거되는가?", standard: "밀폐형 수거통 관리", required: true, status: null }
+        ]
+      },
+      {
+        id: "tmpl_common",
+        codePrefix: "G",
+        title: "일반공통 기본안전 패트롤 점검표",
+        targetKeywords: "tbm, 일반위험, 일반, 리모델링, 공통, 정리정돈",
+        icon: "fa-shield-halved",
+        items: [
+          { id: "g1", title: "작업 전 TBM(위험예지훈련) 실시 및 서명 확인", desc: "당일 작업 시작 전 근로자 대상 위험요인 전파 및 스트레칭, TBM 서명이 완료되었는가?", standard: "전원 서명부 확인", required: true, status: null },
+          { id: "g2", title: "기본 개인보호구(안전모, 안전화, 각반) 올바른 착용", desc: "안전모 턱끈을 체결하고 안전화 및 보안경 등 필수 보호구를 전원 착용하였는가?", standard: "턱끈 미체결 근로자 없음", required: true, status: null },
+          { id: "g3", title: "작업장 통로 확보 및 3정5S 정리정돈 상태", desc: "보행 통로상 자재 및 전선류 방치 여부, 바닥 걸림/전도 위험요인이 제거되었는가?", standard: "주 통로 폭 1m 이상 정리", required: false, status: null },
+          { id: "g4", title: "임시 가설전선 누전차단기 경유 및 피복 손상 여부", desc: "이동형 분전함의 누전차단기(30mA, 0.03초)를 경유하고 전선 거치대를 사용 중인가?", standard: "공중 가공 배선 또는 방호 커버", required: true, status: null }
+        ]
+      }
+    ];
+
+    // ==========================================
+    // 2. 작업 허가 로그 데이터 (시트 1 매칭용)
+    // ==========================================
+    let PERMIT_LOGS = [
+      {
+        permitNo: "2026-GAG-00004",
+        site: "진위사업장",
+        date: "2026-11-03 ~ 2026-11-06",
+        time: "07:30 ~ 19:30",
+        location: "3F 통합사무실",
+        jobName: "진위사업장 리모델링 작업(2층, 3층, 4층)",
+        dept: "GA G",
+        manager: "박진홍",
+        contractor: "SEL인테리어디자인",
+        contractorManager: "유상조",
+        riskGrade: "B",
+        workTypes: "TBM 진행 절차, 일반위험, 지게차(중장비)"
+      },
+      {
+        permitNo: "2026-구매팀-00077",
+        site: "진위 사업장",
+        date: "2026-11-02 ~ 2026-11-06",
+        time: "08:30 ~ 17:30",
+        location: "1F 반출입구",
+        jobName: "컬럼, 케이스 하차 지게차 작업",
+        dept: "구매팀",
+        manager: "박정수",
+        contractor: "엠에프테크",
+        contractorManager: "유희원",
+        riskGrade: "C",
+        workTypes: "TBM 진행 절차, 일반위험, 지게차(중장비)"
+      },
+      {
+        permitNo: "2026-제조팀-00190",
+        site: "진위 사업장",
+        date: "2026-11-02 ~ 2026-11-06",
+        time: "04:30 ~ 22:30",
+        location: "1F 반출입구",
+        jobName: "출하 및 물류 업무 진행",
+        dept: "제조팀",
+        manager: "박육송",
+        contractor: "(주)고덕명성로지스",
+        contractorManager: "이태준",
+        riskGrade: "C",
+        workTypes: "TBM 진행 절차, 일반위험, 지게차(중장비)"
+      },
+      {
+        permitNo: "2026-GAG-00002",
+        site: "진위사업장",
+        date: "2026-11-02 ~ 2026-11-06",
+        time: "07:30 ~ 17:30",
+        location: "3F 전체",
+        jobName: "진위사업장 리모델링 작업(2층, 3층, 4층)",
+        dept: "GA G",
+        manager: "박진홍",
+        contractor: "SEL인테리어디자인",
+        contractorManager: "김예은",
+        riskGrade: "B",
+        workTypes: "TBM 진행 절차, 일반위험"
+      }
+    ];
+
+    // 현재 선택된 작업 & 현재 활성화된 점검표 ID 배열 (복수 순차 렌더링)
+    let currentPermit = PERMIT_LOGS[0];
+    let activeTemplateIds = ["tmpl_common", "tmpl_heavy"]; // 기본 선택
+    let inspectionHistory = []; // 시트 2 누적 배열
+
+    // Google Apps Script (GAS) 웹앱 URL 관리
+    let gasWebAppUrl = "";
+
+    // 캔버스 서명 변수
+    let canvas, ctx;
+    let isDrawing = false;
+    let hasSignature = false;
+
+    // ==========================================
+    // 3. 앱 초기화 및 탭 전환
+    // ==========================================
+    window.onload = function() {
+      initPermitSelection();
+      renderPermitTable();
+      initSignatureCanvas();
+      updateHistoryTable();
+      initGasUrlSetting();
+    };
+
+    function initGasUrlSetting() {
+      // localStorage 대신 기본 메모리 및 입력창 동기화 지원
+      const storedGasUrl = window.__gas_webapp_url || "";
+      gasWebAppUrl = storedGasUrl;
+      const input = document.getElementById('gasEndpointInput');
+      if (input) input.value = gasWebAppUrl;
+      updateGasStatusFeedback();
+    }
+
+    function switchMainTab(tab) {
+      const viewInspect = document.getElementById('viewInspect');
+      const viewPermits = document.getElementById('viewPermits');
+      const viewHistory = document.getElementById('viewHistory');
+
+      const navInspect = document.getElementById('navTabInspect');
+      const navPermits = document.getElementById('navTabPermits');
+      const navHistory = document.getElementById('navTabHistory');
+
+      // 뷰 토글
+      viewInspect.classList.toggle('hidden', tab !== 'inspect');
+      viewPermits.classList.toggle('hidden', tab !== 'permits');
+      viewHistory.classList.toggle('hidden', tab !== 'history');
+
+      // 네비게이션 스타일 갱신
+      const activeClass = ['bg-amber-500', 'text-slate-950', 'shadow'];
+      const defaultClass = ['text-slate-300', 'hover:text-white'];
+
+      [navInspect, navPermits, navHistory].forEach(btn => {
+        btn.classList.remove(...activeClass);
+        btn.classList.add(...defaultClass);
+      });
+
+      if (tab === 'inspect') {
+        navInspect.classList.add(...activeClass);
+        navInspect.classList.remove(...defaultClass);
+      } else if (tab === 'permits') {
+        navPermits.classList.add(...activeClass);
+        navPermits.classList.remove(...defaultClass);
+      } else if (tab === 'history') {
+        navHistory.classList.add(...activeClass);
+        navHistory.classList.remove(...defaultClass);
+      }
+    }
+
+    // ==========================================
+    // 4. 시트1 작업로그 파싱 & 복수 작업종류 자동 매칭
+    // ==========================================
+    function initPermitSelection() {
+      const select = document.getElementById('permitSelectBox');
+      select.innerHTML = '';
+
+      if (PERMIT_LOGS.length === 0) {
+        select.innerHTML = '<option value="">등록된 작업이 없습니다</option>';
+        return;
+      }
+
+      PERMIT_LOGS.forEach((p) => {
+        const opt = document.createElement('option');
+        opt.value = p.permitNo;
+        opt.innerText = `[${p.permitNo}] ${p.jobName} (${p.location})`;
+        select.appendChild(opt);
+      });
+
+      if (!currentPermit || !PERMIT_LOGS.find(p => p.permitNo === currentPermit.permitNo)) {
+        currentPermit = PERMIT_LOGS[0];
+      }
+
+      select.value = currentPermit.permitNo;
+      bindPermitToUI(currentPermit);
+      autoDetectAndSetMultipleTemplates(currentPermit);
+    }
+
+    function onSelectPermit(permitNo) {
+      const found = PERMIT_LOGS.find(p => p.permitNo === permitNo);
+      if (found) {
+        currentPermit = found;
+        bindPermitToUI(found);
+        autoDetectAndSetMultipleTemplates(found);
+        showToast(`허가번호 [${found.permitNo}] 작업과 매칭되었습니다.`, "success");
+      }
+    }
+
+    function bindPermitToUI(p) {
+      document.getElementById('dispPermitNo').innerText = p.permitNo || '-';
+      document.getElementById('dispSiteLocation').innerText = `${p.site || ''} / ${p.location || ''}`;
+      document.getElementById('dispJobName').innerText = p.jobName || '-';
+      document.getElementById('dispRiskAndType').innerText = `[${p.riskGrade || '-'}] ${p.workTypes || '-'}`;
+      document.getElementById('dispContractor').innerText = `${p.contractor || '-'} (${p.contractorManager || '-'})`;
+    }
+
+    // 작업명과 작업종류에 포함된 복수의 키워드를 검색하여 해당하는 모든 템플릿을 활성화
+    function autoDetectAndSetMultipleTemplates(permit) {
+      const combined = `${permit.workTypes} ${permit.jobName} ${permit.location}`.toLowerCase();
+      const matchedIds = [];
+
+      CHECK_TEMPLATES.forEach(tmpl => {
+        const keywords = tmpl.targetKeywords.split(',').map(k => k.trim().toLowerCase());
+        const hasKeyword = keywords.some(k => k && combined.includes(k));
+        if (hasKeyword) {
+          matchedIds.push(tmpl.id);
+        }
+      });
+
+      // 기본적으로 아무것도 매칭되지 않으면 일반 공통 적용
+      if (matchedIds.length === 0) {
+        matchedIds.push('tmpl_common');
+      }
+
+      // 항상 일반공통 점검표가 기본 포함되도록 권장 (TBM, 보호구 등 기본 체크)
+      if (!matchedIds.includes('tmpl_common')) {
+        matchedIds.push('tmpl_common');
+      }
+
+      activeTemplateIds = matchedIds;
+      renderTemplateToggleChips();
+      renderSequentialChecklists();
+    }
+
+    // 작업종류 토글 칩 렌더링 (원클릭으로 점검표 추가/제외 가능)
+    function renderTemplateToggleChips() {
+      const container = document.getElementById('templateToggleChips');
+      container.innerHTML = '';
+      document.getElementById('activeTemplatesCountBadge').innerText = `${activeTemplateIds.length}개 분야 적용`;
+
+      CHECK_TEMPLATES.forEach(tmpl => {
+        const isActive = activeTemplateIds.includes(tmpl.id);
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = `px-2.5 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border ${
+          isActive 
+            ? 'bg-slate-900 text-white border-slate-900 shadow-sm' 
+            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+        }`;
+        chip.innerHTML = `
+          <i class="fa-solid ${tmpl.icon} ${isActive ? 'text-amber-400' : 'text-slate-400'}"></i>
+          <span>${tmpl.title.replace('안전 패트롤 점검표', '').trim()}</span>
+          <span class="text-[10px] ${isActive ? 'text-emerald-300' : 'text-slate-400'} font-mono">${isActive ? '✓ 적용' : '+ 추가'}</span>
+        `;
+        chip.onclick = () => toggleTemplateActive(tmpl.id);
+        container.appendChild(chip);
+      });
+    }
+
+    function toggleTemplateActive(tmplId) {
+      if (activeTemplateIds.includes(tmplId)) {
+        if (activeTemplateIds.length <= 1) {
+          showToast("최소 1개 이상의 점검표가 활성화되어 있어야 합니다.", "error");
+          return;
+        }
+        activeTemplateIds = activeTemplateIds.filter(id => id !== tmplId);
+      } else {
+        activeTemplateIds.push(tmplId);
+      }
+      renderTemplateToggleChips();
+      renderSequentialChecklists();
+    }
+
+    // ==========================================
+    // 5. 세로 순차 체크리스트 렌더링 (누락 방지)
+    // ==========================================
+    function renderSequentialChecklists() {
+      const container = document.getElementById('sequentialChecklistsContainer');
+      container.innerHTML = '';
+
+      const targetTemplates = CHECK_TEMPLATES.filter(t => activeTemplateIds.includes(t.id));
+
+      targetTemplates.forEach((tmpl, tmplIndex) => {
+        const section = document.createElement('section');
+        section.className = "bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden space-y-0";
+
+        // 섹션 헤더
+        const header = document.createElement('div');
+        header.className = "p-4 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2";
+        header.innerHTML = `
+          <div class="flex items-center gap-2.5">
+            <span class="w-6 h-6 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center font-black text-xs">
+              ${tmplIndex + 1}
+            </span>
+            <div class="flex items-center gap-2">
+              <i class="fa-solid ${tmpl.icon} text-amber-400"></i>
+              <h4 class="font-bold text-sm sm:text-base">${tmpl.title}</h4>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 self-end sm:self-auto">
+            <span class="text-[11px] text-slate-300 bg-slate-800 px-2.5 py-1 rounded-md border border-slate-700">
+              코드: [${tmpl.codePrefix}]
+            </span>
+            <button type="button" onclick="quickPassTemplate('${tmpl.id}')" class="px-2.5 py-1 bg-emerald-600/80 hover:bg-emerald-500 text-white text-[11px] font-semibold rounded-md transition flex items-center gap-1">
+              <i class="fa-solid fa-check"></i> 이 점검표 양호
+            </button>
+          </div>
+        `;
+        section.appendChild(header);
+
+        // 문항 목록
+        const listDiv = document.createElement('div');
+        listDiv.className = "divide-y divide-slate-100";
+
+        tmpl.items.forEach((item, itemIdx) => {
+          const row = document.createElement('div');
+          row.className = "p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-slate-50/50 transition";
+          row.innerHTML = `
+            <div class="space-y-1 flex-1">
+              <div class="flex items-start gap-2">
+                <span class="text-[11px] font-mono font-bold text-slate-400 mt-0.5">${item.id.toUpperCase()}</span>
+                ${item.required ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-600 font-bold border border-rose-200 shrink-0 mt-0.5">필수</span>' : '<span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-medium shrink-0 mt-0.5">일반</span>'}
+                <h5 class="text-xs sm:text-sm font-bold text-slate-800">${item.title}</h5>
+              </div>
+              <p class="text-xs text-slate-600 pl-8 leading-relaxed">${item.desc}</p>
+              <div class="text-[11px] text-amber-700 font-medium pl-8 flex items-center gap-1">
+                <i class="fa-solid fa-circle-check text-amber-500"></i>
+                <span>기준: ${item.standard}</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0 self-end md:self-center pl-8 md:pl-0">
+              <button type="button" onclick="setItemStatusInTemplate('${tmpl.id}', '${item.id}', 'PASS')" id="btn-${item.id}-PASS" class="status-btn px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 hover:border-emerald-500 hover:text-emerald-600 transition flex items-center gap-1 ${item.status === 'PASS' ? 'active-pass' : ''}">
+                <i class="fa-solid fa-check"></i> 양호
+              </button>
+              <button type="button" onclick="setItemStatusInTemplate('${tmpl.id}', '${item.id}', 'FAIL')" id="btn-${item.id}-FAIL" class="status-btn px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 hover:border-rose-500 hover:text-rose-600 transition flex items-center gap-1 ${item.status === 'FAIL' ? 'active-fail' : ''}">
+                <i class="fa-solid fa-xmark"></i> 불량
+              </button>
+              <button type="button" onclick="setItemStatusInTemplate('${tmpl.id}', '${item.id}', 'NA')" id="btn-${item.id}-NA" class="status-btn px-2.5 py-1.5 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-500 hover:border-slate-400 transition ${item.status === 'NA' ? 'active-na' : ''}">
+                해당무
+              </button>
+            </div>
+          `;
+          listDiv.appendChild(row);
+        });
+
+        section.appendChild(listDiv);
+        container.appendChild(section);
+      });
+
+      updateOverallDashboardCounts();
+    }
+
+    function setItemStatusInTemplate(tmplId, itemId, status) {
+      const tmpl = CHECK_TEMPLATES.find(t => t.id === tmplId);
+      if (!tmpl) return;
+      const item = tmpl.items.find(i => i.id === itemId);
+      if (item) {
+        item.status = status;
+        refreshItemButton(itemId, status);
+        updateOverallDashboardCounts();
+      }
+    }
+
+    function refreshItemButton(itemId, status) {
+      ['PASS', 'FAIL', 'NA'].forEach(st => {
+        const btn = document.getElementById(`btn-${itemId}-${st}`);
+        if (!btn) return;
+        btn.classList.remove('active-pass', 'active-fail', 'active-na');
+        if (st === status) {
+          btn.classList.add(`active-${st.toLowerCase()}`);
+        }
+      });
+    }
+
+    function quickPassTemplate(tmplId) {
+      const tmpl = CHECK_TEMPLATES.find(t => t.id === tmplId);
+      if (!tmpl) return;
+      tmpl.items.forEach(i => {
+        i.status = 'PASS';
+        refreshItemButton(i.id, 'PASS');
+      });
+      updateOverallDashboardCounts();
+      showToast(`[${tmpl.title}] 문항이 모두 양호 처리되었습니다.`, "success");
+    }
+
+    // 펼쳐진 모든 점검표를 합산한 전체 현황 갱신
+    function updateOverallDashboardCounts() {
+      const targetTemplates = CHECK_TEMPLATES.filter(t => activeTemplateIds.includes(t.id));
+      let total = 0, pass = 0, fail = 0, na = 0, checked = 0;
+
+      targetTemplates.forEach(tmpl => {
+        tmpl.items.forEach(i => {
+          total++;
+          if (i.status === 'PASS') pass++;
+          else if (i.status === 'FAIL') fail++;
+          else if (i.status === 'NA') na++;
+          if (i.status !== null) checked++;
+        });
+      });
+
+      document.getElementById('totalCount').innerText = total;
+      document.getElementById('passCount').innerText = pass;
+      document.getElementById('failCount').innerText = fail;
+      const progress = total > 0 ? Math.round((checked / total) * 100) : 0;
+      document.getElementById('progressPercent').innerText = `${progress}%`;
+    }
+
+    // 전체 펼쳐진 항목 원클릭 양호
+    document.getElementById('quickPassAllBtn').addEventListener('click', () => {
+      const targetTemplates = CHECK_TEMPLATES.filter(t => activeTemplateIds.includes(t.id));
+      targetTemplates.forEach(tmpl => {
+        tmpl.items.forEach(i => {
+          i.status = 'PASS';
+          refreshItemButton(i.id, 'PASS');
+        });
+      });
+      updateOverallDashboardCounts();
+      showToast("활성화된 모든 작업종류 문항이 [양호] 처리되었습니다.", "success");
+    });
+
+    // 폼 초기화
+    document.getElementById('resetFormBtn').addEventListener('click', () => {
+      if (!confirm("현재 작성 중인 모든 점검 내용과 서명을 초기화하시겠습니까?")) return;
+      CHECK_TEMPLATES.forEach(tmpl => {
+        tmpl.items.forEach(i => {
+          i.status = null;
+          refreshItemButton(i.id, null);
+        });
+      });
+      clearSignature();
+      document.getElementById('patrolNotes').value = "";
+      updateOverallDashboardCounts();
+      showToast("점검표가 초기화되었습니다.", "info");
+    });
+
+    // ==========================================
+    // 6. DB화 및 와이드 스키마 저장 (시트 2 완벽 연동)
+    // ==========================================
+    // 모든 템플릿의 문항 코드를 고유 키로 정의 (결과가 없는 작업군은 빈칸 '-' 처리)
+    function getAllItemKeys() {
+      const list = [];
+      CHECK_TEMPLATES.forEach(t => {
+        t.items.forEach(i => {
+          list.push({ tmplId: t.id, itemId: i.id, title: i.title, prefix: t.codePrefix });
+        });
+      });
+      return list;
+    }
+
+    function saveCurrentInspectionToHistory() {
+      const targetTemplates = CHECK_TEMPLATES.filter(t => activeTemplateIds.includes(t.id));
+      const inspector = document.getElementById('inspectorName').value.trim() || '미지정';
+      const notes = document.getElementById('patrolNotes').value.trim();
+      const o2 = document.getElementById('gasO2').value;
+      const lel = document.getElementById('gasLEL').value;
+      const co = document.getElementById('gasCO').value;
+      const nowStr = getFormattedDateTime();
+
+      let pass = 0, fail = 0, na = 0, uncheck = 0;
+      const defectTitles = [];
+
+      targetTemplates.forEach(tmpl => {
+        tmpl.items.forEach(i => {
+          if (i.status === 'PASS') pass++;
+          else if (i.status === 'FAIL') { fail++; defectTitles.push(`[${tmpl.codePrefix}] ${i.title}`); }
+          else if (i.status === 'NA') na++;
+          else uncheck++;
+        });
+      });
+
+      if (uncheck > 0) {
+        if (!confirm(`아직 점검하지 않은 문항이 ${uncheck}건 있습니다. 누락된 상태로 저장하시겠습니까?`)) {
+          return;
+        }
+      }
+
+      const finalGrade = fail > 0 ? 'FAIL' : 'PASS';
+
+      // 각 템플릿별 결과 요약 문자열 및 전체 항목 개별 값 맵 생성
+      const templateResultsMap = {};
+      const allItemStatusMap = {};
+
+      CHECK_TEMPLATES.forEach(tmpl => {
+        const isTmplActive = activeTemplateIds.includes(tmpl.id);
+        if (isTmplActive) {
+          const passCount = tmpl.items.filter(i => i.status === 'PASS').length;
+          const failCount = tmpl.items.filter(i => i.status === 'FAIL').length;
+          templateResultsMap[tmpl.id] = failCount > 0 ? `불량(${failCount})` : `양호(${passCount})`;
+        } else {
+          templateResultsMap[tmpl.id] = "-"; // 미실시/해당없음
+        }
+
+        tmpl.items.forEach(i => {
+          if (isTmplActive && i.status !== null) {
+            allItemStatusMap[i.id] = i.status === 'PASS' ? '양호' : i.status === 'FAIL' ? '불량' : '해당무';
+          } else {
+            allItemStatusMap[i.id] = "-"; // 미실시 셀
+          }
+        });
+      });
+
+      // 시트 2 누적 레코드 객체
+      const record = {
+        id: `INS-${Date.now()}`,
+        timestamp: nowStr,
+        permitNo: currentPermit ? currentPermit.permitNo : '직접입력',
+        site: currentPermit ? currentPermit.site : '진위사업장',
+        location: currentPermit ? currentPermit.location : '미지정',
+        jobName: currentPermit ? currentPermit.jobName : '미지정 작업',
+        contractor: currentPermit ? `${currentPermit.contractor}(${currentPermit.contractorManager})` : '-',
+        appliedTemplates: targetTemplates.map(t => t.title.replace('안전 패트롤 점검표','').trim()).join(', '),
+        grade: finalGrade,
+        passCount: pass,
+        failCount: fail,
+        naCount: na,
+        gasSummary: `O₂:${o2}%, LEL:${lel}%, CO:${co}ppm`,
+        inspector: inspector,
+        notes: notes || (fail > 0 ? `부적합 지적: ${defectTitles.join('; ')}` : '양호 특이사항 없음'),
+        allItemStatusMap: allItemStatusMap,
+        fireSummary: templateResultsMap['tmpl_fire'] || '-',
+        heightSummary: templateResultsMap['tmpl_height'] || '-',
+        heavySummary: templateResultsMap['tmpl_heavy'] || '-',
+        chemSummary: templateResultsMap['tmpl_chemical'] || '-',
+        commonSummary: templateResultsMap['tmpl_common'] || '-'
+      };
+
+      inspectionHistory.unshift(record);
+      updateHistoryTable();
+      showToast("복합 작업 점검 결과가 표준 DB(시트 2)에 안전하게 저장되었습니다!", "success");
+
+      // GAS 웹앱 URL이 설정되어 있을 경우 백그라운드 자동 전송 시도
+      if (gasWebAppUrl && gasWebAppUrl.trim().length > 10) {
+        postSingleInspectionToGAS(record);
+      }
+
+      switchMainTab('history');
+    }
+
+    function updateHistoryTable() {
+      const tbody = document.getElementById('historyTableBody');
+      tbody.innerHTML = '';
+      document.getElementById('historyBadgeCount').innerText = inspectionHistory.length;
+      document.getElementById('historyTotalCountText').innerText = inspectionHistory.length;
+
+      if (inspectionHistory.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="15" class="p-8 text-center text-slate-400">아직 저장된 점검 이력이 없습니다. 현장 점검 후 [점검 완료 및 이력 저장]을 실행하세요.</td></tr>`;
+        return;
+      }
+
+      inspectionHistory.forEach((rec, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition whitespace-nowrap text-xs";
+        const gradeBadge = rec.grade === 'PASS' 
+          ? '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 font-bold rounded text-[11px]">적합</span>'
+          : '<span class="px-2 py-0.5 bg-rose-100 text-rose-700 font-bold rounded text-[11px]">부적합</span>';
+
+        tr.innerHTML = `
+          <td class="p-3 text-center text-slate-400 font-mono">${idx + 1}</td>
+          <td class="p-3 text-[11px] font-mono text-slate-500">${rec.timestamp}</td>
+          <td class="p-3 font-mono font-bold text-slate-800">${rec.permitNo}</td>
+          <td class="p-3">
+            <p class="font-bold text-slate-800 truncate max-w-xs">${rec.jobName}</p>
+            <p class="text-[11px] text-slate-400 truncate max-w-xs">${rec.location}</p>
+          </td>
+          <td class="p-3 text-[11px] font-semibold text-slate-700 max-w-xs truncate">${rec.appliedTemplates}</td>
+          <td class="p-3 text-center">${gradeBadge}</td>
+          <td class="p-3 text-center">
+            <span class="text-emerald-600 font-bold">${rec.passCount}</span> / <span class="text-rose-600 font-bold">${rec.failCount}</span>
+          </td>
+          <td class="p-3 text-[11px] font-mono text-cyan-800">${rec.gasSummary}</td>
+          <td class="p-3 font-medium">${rec.inspector}</td>
+          <td class="p-3 text-center font-mono text-xs ${rec.fireSummary.includes('불량') ? 'text-rose-600 font-bold' : rec.fireSummary !== '-' ? 'text-emerald-600' : 'text-slate-300'}">${rec.fireSummary}</td>
+          <td class="p-3 text-center font-mono text-xs ${rec.heightSummary.includes('불량') ? 'text-rose-600 font-bold' : rec.heightSummary !== '-' ? 'text-emerald-600' : 'text-slate-300'}">${rec.heightSummary}</td>
+          <td class="p-3 text-center font-mono text-xs ${rec.heavySummary.includes('불량') ? 'text-rose-600 font-bold' : rec.heavySummary !== '-' ? 'text-emerald-600' : 'text-slate-300'}">${rec.heavySummary}</td>
+          <td class="p-3 text-center font-mono text-xs ${rec.chemSummary.includes('불량') ? 'text-rose-600 font-bold' : rec.chemSummary !== '-' ? 'text-emerald-600' : 'text-slate-300'}">${rec.chemSummary}</td>
+          <td class="p-3 text-center font-mono text-xs ${rec.commonSummary.includes('불량') ? 'text-rose-600 font-bold' : rec.commonSummary !== '-' ? 'text-emerald-600' : 'text-slate-300'}">${rec.commonSummary}</td>
+          <td class="p-3 text-slate-600 max-w-xs truncate" title="${rec.notes}">${rec.notes}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filterHistoryTable() {
+      const q = document.getElementById('historySearchInput').value.toLowerCase();
+      const statusFilter = document.getElementById('historyFilterResult').value;
+      const rows = document.getElementById('historyTableBody').getElementsByTagName('tr');
+
+      for (let tr of rows) {
+        const text = tr.innerText.toLowerCase();
+        const matchesQuery = text.includes(q);
+        const matchesStatus = (statusFilter === 'ALL') || 
+          (statusFilter === 'PASS' && tr.innerHTML.includes('적합')) ||
+          (statusFilter === 'FAIL' && tr.innerHTML.includes('부적합'));
+
+        tr.style.display = (matchesQuery && matchesStatus) ? '' : 'none';
+      }
+    }
+
+    // 시트 2 CSV 다운로드 (모든 개별 항목 셀이 매핑된 표준 와이드 데이터베이스)
+    function exportHistoryCSV() {
+      if (inspectionHistory.length === 0) {
+        showToast("다운로드할 점검 이력이 없습니다.", "error");
+        return;
+      }
+
+      // 기본 헤더 + 모든 개별 점검 문항 컬럼(F1~F8, H1~H4, M1~M4, C1~C3, G1~G4)
+      const allItemCols = getAllItemKeys();
+      const headers = [
+        "점검일시", "허가번호", "사업장", "작업장소", "작업명", "협력사/담당자", 
+        "적용점검표", "종합판정", "양호수", "불량수", "해당무", "가스측정치", "점검자",
+        ...allItemCols.map(col => `[${col.prefix}]_${col.itemId.toUpperCase()}_${col.title.slice(0,12)}`),
+        "조치소견"
+      ];
+      
+      const csvRows = [headers.map(h => `"${h}"`).join(',')];
+
+      inspectionHistory.forEach(r => {
+        const itemCells = allItemCols.map(col => {
+          const val = (r.allItemStatusMap && r.allItemStatusMap[col.itemId]) ? r.allItemStatusMap[col.itemId] : "-";
+          return `"${val}"`;
+        });
+
+        const row = [
+          `"${r.timestamp}"`,
+          `"${r.permitNo}"`,
+          `"${r.site}"`,
+          `"${r.location}"`,
+          `"${r.jobName.replace(/"/g, '""')}"`,
+          `"${r.contractor}"`,
+          `"${r.appliedTemplates}"`,
+          `"${r.grade === 'PASS' ? '적합' : '부적합'}"`,
+          r.passCount,
+          r.failCount,
+          r.naCount,
+          `"${r.gasSummary}"`,
+          `"${r.inspector}"`,
+          ...itemCells,
+          `"${(r.notes || '').replace(/"/g, '""')}"`
+        ];
+        csvRows.push(row.join(','));
+      });
+
+      const csvString = "\uFEFF" + csvRows.join('\r\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `패트롤점검_표준DB_시트2_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast("전체 문항 셀이 할당된 시트2 CSV 파일이 다운로드되었습니다.", "success");
+    }
+
+    // 구글 스프레드시트용 TSV 클립보드 복사 (모든 셀 할당)
+    function copyHistoryToClipboard() {
+      if (inspectionHistory.length === 0) {
+        showToast("복사할 점검 이력이 없습니다.", "error");
+        return;
+      }
+
+      const allItemCols = getAllItemKeys();
+      const headers = [
+        "점검일시", "허가번호", "사업장", "작업장소", "작업명", "협력사/담당자", 
+        "적용점검표", "종합판정", "양호수", "불량수", "해당무", "가스측정치", "점검자",
+        ...allItemCols.map(col => `[${col.prefix}]_${col.itemId.toUpperCase()}`),
+        "조치소견"
+      ];
+      const lines = [headers.join('\t')];
+
+      inspectionHistory.forEach(r => {
+        const itemCells = allItemCols.map(col => {
+          return (r.allItemStatusMap && r.allItemStatusMap[col.itemId]) ? r.allItemStatusMap[col.itemId] : "-";
+        });
+
+        lines.push([
+          r.timestamp,
+          r.permitNo,
+          r.site,
+          r.location,
+          r.jobName,
+          r.contractor,
+          r.appliedTemplates,
+          r.grade === 'PASS' ? '적합' : '부적합',
+          r.passCount,
+          r.failCount,
+          r.naCount,
+          r.gasSummary,
+          r.inspector,
+          ...itemCells,
+          r.notes
+        ].join('\t'));
+      });
+
+      copyTextToClipboard(lines.join('\n'));
+      showToast("구글시트 시트2 전용 데이터가 복사되었습니다! 시트에서 Ctrl+V 하세요.", "success");
+    }
+
+    function clearHistoryRecords() {
+      if (confirm("누적된 모든 점검 이력을 삭제하시겠습니까?")) {
+        inspectionHistory = [];
+        updateHistoryTable();
+        showToast("점검 이력이 초기화되었습니다.", "info");
+      }
+    }
+
+    // ==========================================
+    // 7. 시트1 텍스트 파싱 로직
+    // ==========================================
+    function parseAndSavePermitLogs() {
+      const rawText = document.getElementById('permitPasteArea').value.trim();
+      if (!rawText) {
+        showToast("붙여넣을 작업 로그 텍스트를 입력해주세요.", "error");
+        return;
+      }
+
+      const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      const parsedList = [];
+
+      lines.forEach((line, idx) => {
+        if (line.includes('허가번호') && line.includes('사업장')) return;
+
+        let cols = line.split('\t').map(c => c.trim());
+        if (cols.length < 4) {
+          cols = line.split(',').map(c => c.trim());
+        }
+
+        if (cols.length >= 3) {
+          const cleanCols = cols.filter(c => c.length > 0);
+          if (cleanCols.length >= 5) {
+            parsedList.push({
+              permitNo: cleanCols[0] || `TEMP-${Date.now()}-${idx}`,
+              site: cleanCols[1] || '미지정 사업장',
+              date: cleanCols[2] || '-',
+              time: cleanCols[3] || '-',
+              location: cleanCols[4] || '-',
+              jobName: cleanCols[5] || cleanCols[4] || '작업명 미지정',
+              dept: cleanCols[6] || '-',
+              manager: cleanCols[7] || '-',
+              contractor: cleanCols[8] || '-',
+              contractorManager: cleanCols[9] || '-',
+              riskGrade: cleanCols[10] || 'C',
+              workTypes: cleanCols.slice(11).join(', ') || '일반'
+            });
+          }
+        }
+      });
+
+      if (parsedList.length === 0) {
+        showToast("유효한 작업 로그 컬럼을 파싱하지 못했습니다. 형식을 확인하세요.", "error");
+        return;
+      }
+
+      PERMIT_LOGS = parsedList;
+      currentPermit = PERMIT_LOGS[0];
+      initPermitSelection();
+      renderPermitTable();
+      switchMainTab('inspect');
+      showToast(`총 ${parsedList.length}건의 작업 로그가 연동되었습니다!`, "success");
+    }
+
+    function renderPermitTable() {
+      const tbody = document.getElementById('permitTableBody');
+      tbody.innerHTML = '';
+      document.getElementById('permitBadgeCount').innerText = PERMIT_LOGS.length;
+      document.getElementById('permitTableCount').innerText = PERMIT_LOGS.length;
+
+      PERMIT_LOGS.forEach((p) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition";
+        tr.innerHTML = `
+          <td class="p-3 text-center">
+            <button onclick="selectPermitFromTable('${p.permitNo}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded text-[11px] shadow-sm">
+              선택
+            </button>
+          </td>
+          <td class="p-3 font-mono font-bold text-slate-900">${p.permitNo}</td>
+          <td class="p-3">${p.site} <span class="text-slate-400">/</span> ${p.location}</td>
+          <td class="p-3 font-semibold text-slate-800">${p.jobName}</td>
+          <td class="p-3 text-[11px] text-slate-500">${p.date} (${p.time})</td>
+          <td class="p-3">${p.dept} <span class="text-slate-400">(${p.manager})</span></td>
+          <td class="p-3">${p.contractor} <span class="text-slate-400">(${p.contractorManager})</span></td>
+          <td class="p-3 text-center"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${p.riskGrade === 'A' ? 'bg-rose-100 text-rose-700' : p.riskGrade === 'B' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'}">${p.riskGrade}</span></td>
+          <td class="p-3 text-[11px] text-slate-600">${p.workTypes}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function selectPermitFromTable(permitNo) {
+      onSelectPermit(permitNo);
+      document.getElementById('permitSelectBox').value = permitNo;
+      switchMainTab('inspect');
+    }
+
+    function clearAllPermits() {
+      if (confirm("등록된 모든 작업 목록을 비우시겠습니까?")) {
+        PERMIT_LOGS = [];
+        initPermitSelection();
+        renderPermitTable();
+        showToast("작업 목록이 비워졌습니다.", "info");
+      }
+    }
+
+    function loadSamplePermits() {
+      document.getElementById('permitPasteArea').value = `허가번호\t사업장\t작업기간\t허가시간\t작업장소\t작업명\t작업부서(발주부서)\t작업감독자\t협력회사\t협력회사작업감독자\t위험등급\t작업종류
+2026-GAG-00004\t진위사업장\t2026-11-03 ~ 2026-11-06\t07:30 ~ 19:30\t3F 통합사무실\t진위사업장 리모델링 작업(2층, 3층, 4층)\tGA G\t박진홍\tSEL인테리어디자인\t유상조\tB\tTBM 진행 절차, 일반위험, 지게차(중장비)
+2026-구매팀-00077\t진위 사업장\t2026-11-02 ~ 2026-11-06\t08:30 ~ 17:30\t1F 반출입구\t컬럼, 케이스 하차 지게차 작업\t구매팀\t박정수\t엠에프테크\t유희원\tC\tTBM 진행 절차, 일반위험, 지게차(중장비)
+2026-제조팀-00190\t진위 사업장\t2026-11-02 ~ 2026-11-06\t04:30 ~ 22:30\t1F 반출입구\t출하 및 물류 업무 진행\t제조팀\t박육송\t(주)고덕명성로지스\t이태준\tC\tTBM 진행 절차, 일반위험, 지게차(중장비)
+2026-GAG-00002\t진위사업장\t2026-11-02 ~ 2026-11-06\t07:30 ~ 17:30\t3F 전체\t진위사업장 리모델링 작업(2층, 3층, 4층)\tGA G\t박진홍\tSEL인테리어디자인\t김예은\tB\tTBM 진행 절차, 일반위험`;
+      showToast("샘플 데이터가 붙여넣기 창에 로드되었습니다.", "info");
+    }
+
+    // ==========================================
+    // 8. 템플릿 관리자 모달 로직
+    // ==========================================
+    function openTemplateManagerModal() {
+      const select = document.getElementById('editTemplateSelect');
+      select.innerHTML = '';
+      CHECK_TEMPLATES.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.innerText = t.title;
+        select.appendChild(opt);
+      });
+      select.value = CHECK_TEMPLATES[0].id;
+      loadTemplateForEditing(CHECK_TEMPLATES[0].id);
+      document.getElementById('templateModal').classList.remove('hidden');
+    }
+
+    function closeTemplateModal() {
+      document.getElementById('templateModal').classList.add('hidden');
+    }
+
+    let tempEditingItems = [];
+
+    function loadTemplateForEditing(tmplId) {
+      const tmpl = CHECK_TEMPLATES.find(t => t.id === tmplId) || CHECK_TEMPLATES[0];
+      document.getElementById('tmplEditTitle').value = tmpl.title;
+      document.getElementById('tmplEditKeywords').value = tmpl.targetKeywords;
+      tempEditingItems = JSON.parse(JSON.stringify(tmpl.items));
+      renderTemplateEditItemList();
+    }
+
+    function renderTemplateEditItemList() {
+      const container = document.getElementById('tmplItemsListContainer');
+      container.innerHTML = '';
+      document.getElementById('tmplItemCount').innerText = tempEditingItems.length;
+
+      tempEditingItems.forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.className = "p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 relative";
+        div.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-bold text-slate-500 font-mono text-[11px]">문항 #${idx + 1} (${item.id.toUpperCase()})</span>
+            <button onclick="removeTempEditItem(${idx})" class="text-rose-500 hover:text-rose-700 text-xs font-semibold">
+              <i class="fa-solid fa-trash-can"></i> 삭제
+            </button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input type="text" value="${item.title}" oninput="tempEditingItems[${idx}].title = this.value" placeholder="점검 제목" class="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold">
+            <input type="text" value="${item.standard}" oninput="tempEditingItems[${idx}].standard = this.value" placeholder="점검 기준" class="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs">
+          </div>
+          <textarea rows="1" oninput="tempEditingItems[${idx}].desc = this.value" placeholder="세부 점검 확인사항" class="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs custom-scrollbar">${item.desc}</textarea>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function addNewCheckItemRow() {
+      const code = `custom_${Date.now().toString().slice(-4)}`;
+      tempEditingItems.push({
+        id: code,
+        title: "새 점검 항목",
+        desc: "작업장 안전 수칙 준수 여부를 확인하였는가?",
+        standard: "현장 안전 규정 준수",
+        required: true,
+        status: null
+      });
+      renderTemplateEditItemList();
+    }
+
+    function removeTempEditItem(idx) {
+      tempEditingItems.splice(idx, 1);
+      renderTemplateEditItemList();
+    }
+
+    function promptCreateNewTemplate() {
+      const name = prompt("새로운 점검 템플릿의 명칭을 입력하세요:", "밀폐공간 질식예방 점검표");
+      if (!name) return;
+      const newId = `tmpl_${Date.now()}`;
+      CHECK_TEMPLATES.push({
+        id: newId,
+        codePrefix: "X",
+        title: name,
+        targetKeywords: "밀폐, 질식, 산소",
+        icon: "fa-clipboard-check",
+        items: [
+          { id: `x_${Date.now().toString().slice(-4)}`, title: "환기 및 유해가스 사전 측정", desc: "작업 전 산소 및 유해가스 농도 측정 후 기준치 충족 여부 확인", standard: "O2 18~23.5%", required: true, status: null }
+        ]
+      });
+      openTemplateManagerModal();
+      document.getElementById('editTemplateSelect').value = newId;
+      loadTemplateForEditing(newId);
+      showToast("새 템플릿이 추가되었습니다.", "success");
+    }
+
+    function deleteCurrentTemplate() {
+      const select = document.getElementById('editTemplateSelect');
+      if (CHECK_TEMPLATES.length <= 1) {
+        showToast("최소 1개 이상의 템플릿은 유지되어야 합니다.", "error");
+        return;
+      }
+      if (confirm("정말로 이 점검 템플릿을 삭제하시겠습니까?")) {
+        CHECK_TEMPLATES = CHECK_TEMPLATES.filter(t => t.id !== select.value);
+        activeTemplateIds = activeTemplateIds.filter(id => id !== select.value);
+        if (activeTemplateIds.length === 0) activeTemplateIds = [CHECK_TEMPLATES[0].id];
+        renderTemplateToggleChips();
+        renderSequentialChecklists();
+        openTemplateManagerModal();
+        showToast("템플릿이 삭제되었습니다.", "info");
+      }
+    }
+
+    function saveTemplateChanges() {
+      const select = document.getElementById('editTemplateSelect');
+      const targetTmpl = CHECK_TEMPLATES.find(t => t.id === select.value);
+      if (targetTmpl) {
+        targetTmpl.title = document.getElementById('tmplEditTitle').value.trim() || targetTmpl.title;
+        targetTmpl.targetKeywords = document.getElementById('tmplEditKeywords').value.trim();
+        targetTmpl.items = tempEditingItems;
+
+        renderTemplateToggleChips();
+        renderSequentialChecklists();
+        closeTemplateModal();
+        showToast("템플릿 변경사항이 저장되어 즉시 적용되었습니다.", "success");
+      }
+    }
+
+    // ==========================================
+    // 9. 서명 캔버스
+    // ==========================================
+    function initSignatureCanvas() {
+      canvas = document.getElementById('signCanvas');
+      ctx = canvas.getContext('2d');
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+      };
+
+      const start = (e) => {
+        e.preventDefault();
+        isDrawing = true;
+        document.getElementById('signPlaceholder').classList.add('hidden');
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+      };
+
+      const move = (e) => {
+        if (!isDrawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        hasSignature = true;
+      };
+
+      const end = () => { isDrawing = false; };
+
+      canvas.addEventListener('mousedown', start);
+      canvas.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', end);
+
+      canvas.addEventListener('touchstart', start, { passive: false });
+      canvas.addEventListener('touchmove', move, { passive: false });
+      window.addEventListener('touchend', end);
+
+      document.getElementById('clearSignBtn').addEventListener('click', clearSignature);
+    }
+
+    function resizeCanvas() {
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const tempImg = hasSignature ? canvas.toDataURL() : null;
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      if (tempImg) {
+        const img = new Image();
+        img.src = tempImg;
+        img.onload = () => ctx.drawImage(img, 0, 0);
+      }
+    }
+
+    function clearSignature() {
+      if (!ctx || !canvas) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      hasSignature = false;
+      document.getElementById('signPlaceholder').classList.remove('hidden');
+    }
+
+    // ==========================================
+    // 10. 결과서 모달 및 메신저 공유
+    // ==========================================
+    function openReportModal() {
+      const targetTemplates = CHECK_TEMPLATES.filter(t => activeTemplateIds.includes(t.id));
+      document.getElementById('repPermitNo').innerText = currentPermit ? currentPermit.permitNo : '-';
+      document.getElementById('repDateTime').innerText = getFormattedDateTime();
+      document.getElementById('repLocation').innerText = currentPermit ? `${currentPermit.site} ${currentPermit.location}` : '-';
+      document.getElementById('repJobName').innerText = currentPermit ? currentPermit.jobName : '-';
+      document.getElementById('repContractor').innerText = currentPermit ? `${currentPermit.contractor} (${currentPermit.contractorManager})` : '-';
+      document.getElementById('repInspector').innerText = document.getElementById('inspectorName').value.trim() || '미지정';
+
+      let pass = 0, fail = 0;
+      targetTemplates.forEach(t => {
+        t.items.forEach(i => {
+          if (i.status === 'PASS') pass++;
+          else if (i.status === 'FAIL') fail++;
+        });
+      });
+
+      document.getElementById('repPassCount').innerText = pass;
+      document.getElementById('repFailCount').innerText = fail;
+
+      const appEl = document.getElementById('repApprovalStatus');
+      if (fail > 0) {
+        appEl.innerText = "작업 불허 (즉시 시정 요구)";
+        appEl.className = "font-black text-rose-600";
+      } else {
+        appEl.innerText = "작업 승인 (안전 양호)";
+        appEl.className = "font-black text-emerald-600";
+      }
+
+      document.getElementById('repO2').innerText = document.getElementById('gasO2').value + "%";
+      document.getElementById('repLEL').innerText = document.getElementById('gasLEL').value + "%";
+
+      const tbody = document.getElementById('repTableBody');
+      tbody.innerHTML = '';
+      let rowNum = 1;
+
+      targetTemplates.forEach(t => {
+        t.items.forEach(item => {
+          const tr = document.createElement('tr');
+          let badge = '<span class="text-slate-400">미점검</span>';
+          if (item.status === 'PASS') badge = '<span class="text-emerald-600 font-bold">양호</span>';
+          if (item.status === 'FAIL') badge = '<span class="text-rose-600 font-bold">불량</span>';
+          if (item.status === 'NA') badge = '<span class="text-slate-500">해당무</span>';
+
+          tr.innerHTML = `
+            <td class="p-1.5 text-center text-slate-400 font-mono">${rowNum++}</td>
+            <td class="p-1.5">
+              <span class="font-bold text-slate-800">[${t.codePrefix}] ${item.title}</span>
+              <p class="text-[10px] text-slate-500">${item.desc}</p>
+            </td>
+            <td class="p-1.5 text-center">${badge}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      });
+
+      document.getElementById('repNotes').innerText = document.getElementById('patrolNotes').value.trim() || '특이사항 없음.';
+
+      const signImg = document.getElementById('repSignImg');
+      const noSign = document.getElementById('repNoSignText');
+      if (hasSignature) {
+        signImg.src = canvas.toDataURL();
+        signImg.classList.remove('hidden');
+        noSign.classList.add('hidden');
+      } else {
+        signImg.classList.add('hidden');
+        noSign.classList.remove('hidden');
+      }
+
+      document.getElementById('reportModal').classList.remove('hidden');
+    }
+
+    function closeReportModal() {
+      document.getElementById('reportModal').classList.add('hidden');
+    }
+
+    // 메신저 보고용 텍스트 복사 (모바일/데스크톱 공용)
+    function shareSummaryText() {
+      const targetTemplates = CHECK_TEMPLATES.filter(t => activeTemplateIds.includes(t.id));
+      const p = currentPermit || {};
+      const inspector = document.getElementById('inspectorName').value.trim();
+
+      let pass = 0, fail = 0;
+      const defects = [];
+      targetTemplates.forEach(t => {
+        t.items.forEach(i => {
+          if (i.status === 'PASS') pass++;
+          else if (i.status === 'FAIL') { fail++; defects.push(`[${t.codePrefix}] ${i.title}`); }
+        });
+      });
+
+      const o2 = document.getElementById('gasO2').value;
+      const lel = document.getElementById('gasLEL').value;
+      const notes = document.getElementById('patrolNotes').value.trim();
+
+      const text = `[안전 패트롤 순찰 점검 속보]
+■ 허가번호: ${p.permitNo || '-'}
+■ 작업명: ${p.jobName || '-'} (${p.location || '-'})
+■ 협력사: ${p.contractor || '-'} / 점검자: ${inspector}
+■ 점검분야: ${targetTemplates.map(t => t.title.replace('안전 패트롤 점검표','').trim()).join(', ')}
+■ 가스농도: O2 ${o2}%, LEL ${lel}%
+■ 종합결과: ${fail > 0 ? '❌ 조치 필요 (부적합 ' + fail + '건)' : '✅ 안전 양호 (작업 승인)'}
+${defects.length > 0 ? '■ 지적항목:\n' + defects.map((d, i) => ` ${i+1}. ${d}`).join('\n') : ''}
+${notes ? '■ 조치사항: ' + notes : ''}`;
+
+      copyTextToClipboard(text);
+      showToast("패트롤 요약이 클립보드에 복사되었습니다.", "success");
+    }
+
+    // ==========================================
+    // 11. GAS (Google Apps Script) 웹앱 연동 및 모달 로직
+    // ==========================================
+    function openGasConfigModal() {
+      const input = document.getElementById('gasEndpointInput');
+      if (input) input.value = gasWebAppUrl || "";
+      updateGasStatusFeedback();
+      document.getElementById('gasModal').classList.remove('hidden');
+    }
+
+    function closeGasModal() {
+      document.getElementById('gasModal').classList.add('hidden');
+    }
+
+    function updateGasStatusFeedback() {
+      const feedback = document.getElementById('gasStatusFeedback');
+      if (!gasWebAppUrl || gasWebAppUrl.trim().length === 0) {
+        feedback.innerHTML = '<span class="text-slate-400">현재 연결 상태: 미설정 (수동 복사/붙여넣기 및 CSV 모드 동작)</span>';
+      } else {
+        feedback.innerHTML = `<span class="text-emerald-600 font-semibold flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> 등록된 URL: ${gasWebAppUrl.slice(0, 45)}...</span>`;
+      }
+    }
+
+    function saveGasSettings() {
+      const input = document.getElementById('gasEndpointInput').value.trim();
+      gasWebAppUrl = input;
+      window.__gas_webapp_url = input; // 현재 세션 메모리에 유지
+      updateGasStatusFeedback();
+      closeGasModal();
+      showToast("GAS 웹앱 URL 설정이 성공적으로 저장되었습니다.", "success");
+    }
+
+    function resetGasUrlToDefault() {
+      if (confirm("등록된 GAS 웹앱 URL을 비우시겠습니까?")) {
+        gasWebAppUrl = "";
+        window.__gas_webapp_url = "";
+        document.getElementById('gasEndpointInput').value = "";
+        updateGasStatusFeedback();
+        showToast("GAS URL이 초기화되었습니다.", "info");
+      }
+    }
+
+    async function testGasConnection() {
+      const testUrl = document.getElementById('gasEndpointInput').value.trim();
+      const feedback = document.getElementById('gasStatusFeedback');
+      if (!testUrl || !testUrl.startsWith("http")) {
+        showToast("올바른 HTTP/HTTPS URL을 입력하세요.", "error");
+        return;
+      }
+
+      feedback.innerHTML = '<span class="text-amber-600 font-semibold animate-pulse"><i class="fa-solid fa-spinner fa-spin"></i> GAS 웹앱에 연결을 시도하는 중...</span>';
+
+      try {
+        // GAS 웹앱 GET 테스트
+        const res = await fetch(testUrl, { method: 'GET', mode: 'cors' });
+        if (res.ok) {
+          feedback.innerHTML = '<span class="text-emerald-600 font-bold"><i class="fa-solid fa-circle-check"></i> 연결 성공! 구글 시트와 정상적으로 통신할 수 있습니다.</span>';
+          showToast("GAS 웹앱 연결 테스트 성공!", "success");
+        } else {
+          feedback.innerHTML = `<span class="text-amber-600 font-semibold"><i class="fa-solid fa-triangle-exclamation"></i> 응답 수신 (HTTP ${res.status}). 권한 설정을 확인하세요.</span>`;
+          showToast(`서버 응답 수신: ${res.status}`, "info");
+        }
+      } catch (err) {
+        feedback.innerHTML = '<span class="text-rose-600 font-semibold"><i class="fa-solid fa-circle-xmark"></i> 통신 실패. CORS 또는 웹앱 배포 설정(모든 사용자 허용)을 확인하세요.</span>';
+        showToast("연결 실패: 배포 권한을 '모든 사용자'로 설정했는지 확인하세요.", "error");
+      }
+    }
+
+    function copyGasScriptTemplate() {
+      const code = document.getElementById('gasTemplateCode').innerText;
+      copyTextToClipboard(code);
+      showToast("Apps Script 템플릿 코드가 클립보드에 복사되었습니다.", "success");
+    }
+
+    // GAS에서 시트1 작업목록 불러오기
+    async function fetchPermitsFromGAS() {
+      if (!gasWebAppUrl || gasWebAppUrl.trim().length === 0) {
+        showToast("먼저 상단 [GAS 연동] 메뉴에서 배포된 웹앱 URL을 등록해주세요.", "error");
+        openGasConfigModal();
+        return;
+      }
+
+      const btn = document.getElementById('btnGasFetchPermits');
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 불러오는 중...';
+      btn.disabled = true;
+
+      try {
+        const response = await fetch(gasWebAppUrl, { method: 'GET', mode: 'cors' });
+        const result = await response.json();
+
+        if (result && result.data && Array.isArray(result.data)) {
+          // 2차원 배열 데이터를 작업 목록 모델로 파싱
+          const rows = result.data;
+          const parsed = [];
+          for (let i = 1; i < rows.length; i++) { // 헤더 건너뜀
+            const r = rows[i];
+            if (!r || r.length < 2 || !r[0]) continue;
+            parsed.push({
+              permitNo: String(r[0] || `TEMP-${Date.now()}-${i}`),
+              site: String(r[1] || '사업장'),
+              date: String(r[2] || '-'),
+              time: String(r[3] || '-'),
+              location: String(r[4] || '-'),
+              jobName: String(r[5] || '작업명 미지정'),
+              dept: String(r[6] || '-'),
+              manager: String(r[7] || '-'),
+              contractor: String(r[8] || '-'),
+              contractorManager: String(r[9] || '-'),
+              riskGrade: String(r[10] || 'C'),
+              workTypes: String(r.slice(11).join(', ') || '일반')
+            });
+          }
+
+          if (parsed.length > 0) {
+            PERMIT_LOGS = parsed;
+            currentPermit = PERMIT_LOGS[0];
+            initPermitSelection();
+            renderPermitTable();
+            showToast(`구글 시트(시트1)로부터 ${parsed.length}건의 작업을 불러왔습니다!`, "success");
+          } else {
+            showToast("시트1에 유효한 작업 데이터가 없습니다.", "info");
+          }
+        } else {
+          showToast("GAS 반환 데이터 형식이 올바르지 않습니다.", "error");
+        }
+      } catch (err) {
+        showToast("시트1 불러오기 실패: URL 및 네트워크 상태를 확인하세요.", "error");
+      } finally {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+      }
+    }
+
+    // 단일 점검 완료 시 GAS 시트2로 자동 POST 전송
+    async function postSingleInspectionToGAS(record) {
+      if (!gasWebAppUrl) return;
+      const allItemCols = getAllItemKeys();
+      const itemCells = allItemCols.map(col => {
+        return (record.allItemStatusMap && record.allItemStatusMap[col.itemId]) ? record.allItemStatusMap[col.itemId] : "-";
+      });
+
+      const rowData = [
+        record.timestamp,
+        record.permitNo,
+        record.site,
+        record.location,
+        record.jobName,
+        record.contractor,
+        record.appliedTemplates,
+        record.grade === 'PASS' ? '적합' : '부적합',
+        record.passCount,
+        record.failCount,
+        record.naCount,
+        record.gasSummary,
+        record.inspector,
+        ...itemCells,
+        record.notes
+      ];
+
+      try {
+        await fetch(gasWebAppUrl, {
+          method: 'POST',
+          mode: 'no-cors', // GAS 리다이렉트 특성에 따른 no-cors 전송
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: "saveInspection",
+            row: rowData
+          })
+        });
+        showToast("구글 시트(시트2)로 점검결과가 실시간 자동 백업되었습니다.", "success");
+      } catch (err) {
+        console.warn("GAS 백그라운드 전송 실패:", err);
+      }
+    }
+
+    // 시트2 누적 이력 일괄 전송
+    async function syncHistoryToGAS() {
+      if (!gasWebAppUrl || gasWebAppUrl.trim().length === 0) {
+        showToast("먼저 상단 [GAS 연동] 메뉴에서 배포된 웹앱 URL을 등록해주세요.", "error");
+        openGasConfigModal();
+        return;
+      }
+
+      if (inspectionHistory.length === 0) {
+        showToast("전송할 점검 이력이 없습니다.", "info");
+        return;
+      }
+
+      const btn = document.getElementById('btnGasSyncHistory');
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 전송 중...';
+      btn.disabled = true;
+
+      const allItemCols = getAllItemKeys();
+      let successCount = 0;
+
+      for (const record of inspectionHistory) {
+        const itemCells = allItemCols.map(col => {
+          return (record.allItemStatusMap && record.allItemStatusMap[col.itemId]) ? record.allItemStatusMap[col.itemId] : "-";
+        });
+
+        const rowData = [
+          record.timestamp,
+          record.permitNo,
+          record.site,
+          record.location,
+          record.jobName,
+          record.contractor,
+          record.appliedTemplates,
+          record.grade === 'PASS' ? '적합' : '부적합',
+          record.passCount,
+          record.failCount,
+          record.naCount,
+          record.gasSummary,
+          record.inspector,
+          ...itemCells,
+          record.notes
+        ];
+
+        try {
+          await fetch(gasWebAppUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: "saveInspection",
+              row: rowData
+            })
+          });
+          successCount++;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      btn.innerHTML = originalHTML;
+      btn.disabled = false;
+      showToast(`총 ${inspectionHistory.length}건의 이력을 구글 시트로 전송 요청했습니다.`, "success");
+    }
+
+    // ==========================================
+    // 10. 결과서 모달 및 메신저 공유
+    // ==========================================
+    function openReportModal() {
+      const targetTemplates = CHECK_TEMPLATES.filter(t => activeTemplateIds.includes(t.id));
+      document.getElementById('repPermitNo').innerText = currentPermit ? currentPermit.permitNo : '-';
+      document.getElementById('repDateTime').innerText = getFormattedDateTime();
+      document.getElementById('repLocation').innerText = currentPermit ? `${currentPermit.site} ${currentPermit.location}` : '-';
+      document.getElementById('repJobName').innerText = currentPermit ? currentPermit.jobName : '-';
+      document.getElementById('repContractor').innerText = currentPermit ? `${currentPermit.contractor} (${currentPermit.contractorManager})` : '-';
+      document.getElementById('repInspector').innerText = document.getElementById('inspectorName').value.trim() || '미지정';
+
+      let pass = 0, fail = 0;
+      targetTemplates.forEach(t => {
+        t.items.forEach(i => {
+          if (i.status === 'PASS') pass++;
+          else if (i.status === 'FAIL') fail++;
+        });
+      });
+
+      document.getElementById('repPassCount').innerText = pass;
+      document.getElementById('repFailCount').innerText = fail;
+
+      const appEl = document.getElementById('repApprovalStatus');
+      if (fail > 0) {
+        appEl.innerText = "작업 불허 (즉시 시정 요구)";
+        appEl.className = "font-black text-rose-600";
+      } else {
+        appEl.innerText = "작업 승인 (안전 양호)";
+        appEl.className = "font-black text-emerald-600";
+      }
+
+      document.getElementById('repO2').innerText = document.getElementById('gasO2').value + "%";
+      document.getElementById('repLEL').innerText = document.getElementById('gasLEL').value + "%";
+
+      const tbody = document.getElementById('repTableBody');
+      tbody.innerHTML = '';
+      let rowNum = 1;
+
+      targetTemplates.forEach(t => {
+        t.items.forEach(item => {
+          const tr = document.createElement('tr');
+          let badge = '<span class="text-slate-400">미점검</span>';
+          if (item.status === 'PASS') badge = '<span class="text-emerald-600 font-bold">양호</span>';
+          if (item.status === 'FAIL') badge = '<span class="text-rose-600 font-bold">불량</span>';
+          if (item.status === 'NA') badge = '<span class="text-slate-500">해당무</span>';
+
+          tr.innerHTML = `
+            <td class="p-1.5 text-center text-slate-400 font-mono">${rowNum++}</td>
+            <td class="p-1.5">
+              <span class="font-bold text-slate-800">[${t.codePrefix}] ${item.title}</span>
+              <p class="text-[10px] text-slate-500">${item.desc}</p>
+            </td>
+            <td class="p-1.5 text-center">${badge}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      });
+
+      document.getElementById('repNotes').innerText = document.getElementById('patrolNotes').value.trim() || '특이사항 없음.';
+
+      const signImg = document.getElementById('repSignImg');
+      const noSign = document.getElementById('repNoSignText');
+      if (hasSignature) {
+        signImg.src = canvas.toDataURL();
+        signImg.classList.remove('hidden');
+        noSign.classList.add('hidden');
+      } else {
+        signImg.classList.add('hidden');
+        noSign.classList.remove('hidden');
+      }
+
+      document.getElementById('reportModal').classList.remove('hidden');
+    }
+
+    function closeReportModal() {
+      document.getElementById('reportModal').classList.add('hidden');
+    }
+
+    // ==========================================
+    // 11. GAS (Google Apps Script) 웹앱 연동 및 모달 로직
+    // ==========================================
+    function getFormattedDateTime() {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    }
+
+    function copyTextToClipboard(text) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+      } catch (err) {}
+      document.body.removeChild(ta);
+    }
+
+    function showToast(msg, type = "info") {
+      const toast = document.getElementById('toastMessage');
+      const text = document.getElementById('toastText');
+      const icon = document.getElementById('toastIcon');
+
+      text.innerText = msg;
+      if (type === "success") {
+        icon.className = "fa-solid fa-circle-check text-emerald-400";
+      } else if (type === "error") {
+        icon.className = "fa-solid fa-circle-exclamation text-rose-400";
+      } else {
+        icon.className = "fa-solid fa-circle-info text-amber-400";
+      }
+
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2600);
+    }
+  </script>
+</body>
+</html>
